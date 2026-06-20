@@ -27,6 +27,12 @@ export default function Assessment() {
   const [coverLetter, setCoverLetter] = useState("")
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
   const [coverLetterTone, setCoverLetterTone] = useState("professional")
+  const [tailoredResume, setTailoredResume] = useState("")
+  const [generatingTailoredResume, setGeneratingTailoredResume] = useState(false)
+  const [linkedInMessage, setLinkedInMessage] = useState("")
+  const [generatingLinkedIn, setGeneratingLinkedIn] = useState(false)
+  const [recipientName, setRecipientName] = useState("")
+  const [recipientRole, setRecipientRole] = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -40,6 +46,9 @@ export default function Assessment() {
     setLoading(true)
     setError("")
     setResult(null)
+    setCoverLetter("")
+    setTailoredResume("")
+    setLinkedInMessage("")
 
     try {
       const res = await fetch("/api/assess", {
@@ -84,6 +93,64 @@ export default function Assessment() {
       setError(err instanceof Error ? err.message : "Error")
     } finally {
       setGeneratingCoverLetter(false)
+    }
+  }
+
+  const handleGenerateTailoredResume = async () => {
+    setGeneratingTailoredResume(true)
+    try {
+      const res = await fetch("/api/tailored-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume,
+          jobDescription,
+          jobTitle,
+          company,
+          strengths: result?.strengths || [],
+          gaps: result?.gaps || [],
+          missingKeywords: result?.missingKeywords || [],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTailoredResume(data.content)
+      } else {
+        setError("Failed to generate tailored resume")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error")
+    } finally {
+      setGeneratingTailoredResume(false)
+    }
+  }
+
+  const handleGenerateLinkedIn = async () => {
+    setGeneratingLinkedIn(true)
+    try {
+      const res = await fetch("/api/linkedin-outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume,
+          jobDescription,
+          jobTitle,
+          company,
+          recipientName,
+          recipientRole,
+          strengths: result?.strengths || [],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setLinkedInMessage(data.content)
+      } else {
+        setError("Failed to generate LinkedIn message")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error")
+    } finally {
+      setGeneratingLinkedIn(false)
     }
   }
 
@@ -159,14 +226,15 @@ export default function Assessment() {
                 </ul>
               </div>
             </div>
-            <div>
+            <div className="mb-8">
               <h3 className="text-xl font-bold text-yellow-600 mb-3">Missing Keywords</h3>
               <div className="flex flex-wrap gap-2">
                 {result.missingKeywords.map((k, i) => <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">{k}</span>)}
               </div>
             </div>
 
-            <div className="mt-8 border-t-2 border-gray-300 pt-8">
+            {/* Cover Letter */}
+            <div className="border-t-2 border-gray-300 pt-8 mb-8">
               <h3 className="text-2xl font-bold text-indigo-600 mb-4">Generate Cover Letter</h3>
               <div className="mb-4">
                 <label className="block text-gray-700 font-semibold mb-2">Tone:</label>
@@ -180,22 +248,62 @@ export default function Assessment() {
               <button onClick={handleGenerateCoverLetter} disabled={generatingCoverLetter} className={`btn-primary ${generatingCoverLetter ? "opacity-50 cursor-not-allowed" : ""}`}>
                 {generatingCoverLetter ? "Generating..." : "Generate Cover Letter"}
               </button>
+              {coverLetter && (
+                <div className="mt-6 bg-white rounded-lg p-6 shadow">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4">Your Cover Letter</h4>
+                  <textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-64" />
+                  <div className="flex gap-3 mt-4">
+                    <button onClick={() => navigator.clipboard.writeText(coverLetter)} className="btn-primary">Copy</button>
+                    <button className="btn-secondary">Download</button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {coverLetter && (
-              <div className="mt-6 bg-white rounded-lg p-6 shadow">
-                <h4 className="text-xl font-bold text-gray-800 mb-4">Your Cover Letter</h4>
-                <textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-64" />
-                <div className="flex gap-3 mt-4">
-                  <button onClick={() => navigator.clipboard.writeText(coverLetter)} className="btn-primary">Copy to Clipboard</button>
-                  <button className="btn-secondary">Download</button>
+            {/* Tailored Resume */}
+            <div className="border-t-2 border-gray-300 pt-8 mb-8">
+              <h3 className="text-2xl font-bold text-blue-600 mb-4">Optimize Resume for This Role</h3>
+              <p className="text-gray-600 mb-4">Reorganize and highlight relevant skills to match this job</p>
+              <button onClick={handleGenerateTailoredResume} disabled={generatingTailoredResume} className={`btn-primary ${generatingTailoredResume ? "opacity-50 cursor-not-allowed" : ""}`}>
+                {generatingTailoredResume ? "Optimizing..." : "Generate Tailored Resume"}
+              </button>
+              {tailoredResume && (
+                <div className="mt-6 bg-white rounded-lg p-6 shadow">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4">Your Tailored Resume</h4>
+                  <textarea value={tailoredResume} onChange={(e) => setTailoredResume(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-64" />
+                  <div className="flex gap-3 mt-4">
+                    <button onClick={() => navigator.clipboard.writeText(tailoredResume)} className="btn-primary">Copy</button>
+                    <button className="btn-secondary">Download</button>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            {/* LinkedIn Outreach */}
+            <div className="border-t-2 border-gray-300 pt-8">
+              <h3 className="text-2xl font-bold text-blue-600 mb-4">LinkedIn Outreach Message</h3>
+              <p className="text-gray-600 mb-4">Personalized message to connect with hiring manager</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <input type="text" placeholder="Recipient name" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none" />
+                <input type="text" placeholder="Recipient role" value={recipientRole} onChange={(e) => setRecipientRole(e.target.value)} className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none" />
               </div>
-            )}
+              <button onClick={handleGenerateLinkedIn} disabled={generatingLinkedIn} className={`btn-primary ${generatingLinkedIn ? "opacity-50 cursor-not-allowed" : ""}`}>
+                {generatingLinkedIn ? "Generating..." : "Generate LinkedIn Message"}
+              </button>
+              {linkedInMessage && (
+                <div className="mt-6 bg-white rounded-lg p-6 shadow">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4">Your LinkedIn Message</h4>
+                  <textarea value={linkedInMessage} onChange={(e) => setLinkedInMessage(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-40" />
+                  <div className="flex gap-3 mt-4">
+                    <button onClick={() => navigator.clipboard.writeText(linkedInMessage)} className="btn-primary">Copy</button>
+                    <button className="btn-secondary">Download</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
     </div>
   )
 }
-
