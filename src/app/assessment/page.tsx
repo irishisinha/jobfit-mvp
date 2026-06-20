@@ -38,6 +38,16 @@ export default function Assessment() {
     if (status === "unauthenticated") router.push("/")
   }, [status, router])
 
+  const downloadAsText = (text: string, filename: string) => {
+    const element = document.createElement("a")
+    const file = new Blob([text], { type: "text/plain" })
+    element.href = URL.createObjectURL(file)
+    element.download = filename
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+  }
+
   const handleAssess = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
       setError("Fill in both resume and job description")
@@ -212,7 +222,7 @@ export default function Assessment() {
                 <p className="text-2xl font-bold text-purple-600">{result.successProbability}%</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-green-600 mb-3">Strengths</h3>
                 <ul className="space-y-2">
@@ -254,7 +264,7 @@ export default function Assessment() {
                   <textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-64" />
                   <div className="flex gap-3 mt-4">
                     <button onClick={() => navigator.clipboard.writeText(coverLetter)} className="btn-primary">Copy</button>
-                    <button className="btn-secondary">Download</button>
+                    <button onClick={() => downloadAsText(coverLetter, "cover-letter.txt")} className="btn-secondary">Download</button>
                   </div>
                 </div>
               )}
@@ -263,7 +273,7 @@ export default function Assessment() {
             {/* Tailored Resume */}
             <div className="border-t-2 border-gray-300 pt-8 mb-8">
               <h3 className="text-2xl font-bold text-blue-600 mb-4">Optimize Resume for This Role</h3>
-              <p className="text-gray-600 mb-4">Reorganize and highlight relevant skills to match this job</p>
+              <p className="text-gray-600 mb-4">Reorganize and highlight relevant skills to match this job (stays truthful)</p>
               <button onClick={handleGenerateTailoredResume} disabled={generatingTailoredResume} className={`btn-primary ${generatingTailoredResume ? "opacity-50 cursor-not-allowed" : ""}`}>
                 {generatingTailoredResume ? "Optimizing..." : "Generate Tailored Resume"}
               </button>
@@ -273,7 +283,7 @@ export default function Assessment() {
                   <textarea value={tailoredResume} onChange={(e) => setTailoredResume(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-64" />
                   <div className="flex gap-3 mt-4">
                     <button onClick={() => navigator.clipboard.writeText(tailoredResume)} className="btn-primary">Copy</button>
-                    <button className="btn-secondary">Download</button>
+                    <button onClick={() => downloadAsText(tailoredResume, "tailored-resume.txt")} className="btn-secondary">Download</button>
                   </div>
                 </div>
               )}
@@ -296,7 +306,7 @@ export default function Assessment() {
                   <textarea value={linkedInMessage} onChange={(e) => setLinkedInMessage(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-40" />
                   <div className="flex gap-3 mt-4">
                     <button onClick={() => navigator.clipboard.writeText(linkedInMessage)} className="btn-primary">Copy</button>
-                    <button className="btn-secondary">Download</button>
+                    <button onClick={() => downloadAsText(linkedInMessage, "linkedin-message.txt")} className="btn-secondary">Download</button>
                   </div>
                 </div>
               )}
