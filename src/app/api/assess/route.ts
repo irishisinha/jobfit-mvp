@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/auth'
 import { analyzeJobFit } from '../../../lib/groq'
+import { prisma } from '../../../lib/prisma'
 
 export const maxDuration = 60
 
@@ -20,8 +21,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { resume, jobDescription } = body
-    console.log('[ASSESS] Resume length:', resume?.length, 'JD length:', jobDescription?.length)
+    const { resume, jobDescription, jobTitle, company } = body
+    console.log('[ASSESS] Received assessment request')
 
     if (!resume || !jobDescription) {
       return NextResponse.json(
@@ -34,7 +35,30 @@ export async function POST(req: NextRequest) {
     const result = await analyzeJobFit(resume, jobDescription)
     console.log('[ASSESS] Got result:', result)
     
-    return NextResponse.json(result)
+    // Save to database
+    console.log('[ASSESS] Saving to database...')
+    const assessment = await prisma.assessment.create({
+      data: {
+        userId: session.user?.email || '',
+        resume,
+        jobDescription,
+        jobTitle: jobTitle || 'Untitled Position',
+        company: company || 'Unknown Company',
+        verdict: result.verdict,
+        fitScore: result.fitScore,
+        atsMatch: result.atsMatch,
+        successProbability: result.successProbability,
+        strengths: result.strengths.join('|'),
+        gaps: result.gaps.join('|'),
+        missingKeywords: result.missingKeywords.join('|'),
+      },
+    })
+    console.log('[ASSESS] Saved assessment:', assessment.id)
+    
+    return NextResponse.json({
+      ...result,
+      assessmentId: assessment.id,
+    })
   } catch (error) {
     console.error('[ASSESS] Error:', error)
     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -42,7 +66,6 @@ export async function POST(req: NextRequest) {
       { 
         error: 'Assessment failed', 
         details: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     )
