@@ -1,0 +1,5 @@
+{
+  "env": {
+    "DATABASE_URL": "postgresql://postgres:ShivaJaian140326@db.vkpumistlkssyfycohee.supabase.co:5432/postgres"
+  }
+}
