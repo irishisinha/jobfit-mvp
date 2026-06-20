@@ -1,72 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/auth'
-import { analyzeJobFit } from '../../../lib/groq'
-import { prisma } from '../../../lib/prisma'
+import Groq from 'groq-sdk'
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('[ASSESS] Request received')
-    
     const session = await getServerSession(authOptions)
-    console.log('[ASSESS] Session check:', session ? 'authenticated' : 'not authenticated')
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { resume, jobDescription, jobTitle, company } = body
-    console.log('[ASSESS] Received assessment request')
+    const { resume, jobDescription, jobTitle, company } = await req.json()
 
     if (!resume || !jobDescription) {
-      return NextResponse.json(
-        { error: 'Missing resume or job description' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing resume or job description' }, { status: 400 })
     }
 
-    console.log('[ASSESS] Calling Groq API...')
-    const result = await analyzeJobFit(resume, jobDescription)
-    console.log('[ASSESS] Got result:', result)
-    
-    // Save to database
-    console.log('[ASSESS] Saving to database...')
-    const assessment = await prisma.assessment.create({
-      data: {
-        userId: session.user?.email || '',
-        resume,
-        jobDescription,
-        jobTitle: jobTitle || 'Untitled Position',
-        company: company || 'Unknown Company',
-        verdict: result.verdict,
-        fitScore: result.fitScore,
-        atsMatch: result.atsMatch,
-        successProbability: result.successProbability,
-        strengths: result.strengths.join('|'),
-        gaps: result.gaps.join('|'),
-        missingKeywords: result.missingKeywords.join('|'),
-      },
+    const prompt = `You are an expert recruiter. Analyze this resume against the job description and provide:
+1. Verdict: "Strong Fit", "Moderate Fit", or "Weak Fit"
+2. Fit Score: 0-100
+3. ATS Match: 0-100
+4. Success Probability: 0-100
+5. Top 3 Strengths
+6. Top 3 Gaps
+7. Missing Keywords
+
+RESUME:
+${resume}
+
+JOB TITLE: ${jobTitle || 'Position'}
+COMPANY: ${company || 'Company'}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+Respond in JSON format:
+{
+  "verdict": "...",
+  "fitScore": ...,
+  "atsMatch": ...,
+  "successProbability": ...,
+  "strengths": ["...", "...", "..."],
+  "gaps": ["...", "...", "..."],
+  "missingKeywords": ["...", "...", "..."]
+}`
+
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
     })
-    console.log('[ASSESS] Saved assessment:', assessment.id)
-    
-    return NextResponse.json({
-      ...result,
-      assessmentId: assessment.id,
-    })
+
+    const content = completion.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response from Groq')
+    }
+
+    const result = JSON.parse(content)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('[ASSESS] Error:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { 
-        error: 'Assessment failed', 
-        details: errorMessage,
-      },
+      { error: 'Failed to assess fit', details: errorMessage },
       { status: 500 }
     )
   }

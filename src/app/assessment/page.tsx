@@ -14,12 +14,6 @@ interface AssessmentResult {
   missingKeywords: string[]
 }
 
-interface SavedResume {
-  id: string
-  name: string
-  content: string
-}
-
 export default function Assessment() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -30,9 +24,6 @@ export default function Assessment() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<AssessmentResult | null>(null)
   const [error, setError] = useState("")
-  const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
-  const [resumeName, setResumeName] = useState("")
-  const [showSavePrompt, setShowSavePrompt] = useState(false)
   const [coverLetter, setCoverLetter] = useState("")
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
   const [coverLetterTone, setCoverLetterTone] = useState("professional")
@@ -40,23 +31,6 @@ export default function Assessment() {
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
   }, [status, router])
-
-  useEffect(() => {
-    const loadResumes = async () => {
-      try {
-        const res = await fetch("/api/resumes")
-        if (res.ok) setSavedResumes(await res.json())
-      } catch (err) {
-        console.error("Error loading resumes:", err)
-      }
-    }
-    if (status === "authenticated") loadResumes()
-  }, [status])
-
-  const handleLoadResume = (id: string) => {
-    const r = savedResumes.find((x) => x.id === id)
-    if (r) setResume(r.content)
-  }
 
   const handleAssess = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
@@ -76,7 +50,6 @@ export default function Assessment() {
       if (!res.ok) throw new Error("Assessment failed")
       const data = await res.json()
       setResult(data)
-      setShowSavePrompt(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error")
     } finally {
@@ -84,33 +57,7 @@ export default function Assessment() {
     }
   }
 
-  const handleSaveResume = async () => {
-    if (!resumeName.trim()) {
-      setError("Enter resume name")
-      return
-    }
-    try {
-      const res = await fetch("/api/resumes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: resume,
-          name: resumeName,
-          setDefault: savedResumes.length === 0,
-        }),
-      })
-      if (res.ok) {
-        setSavedResumes([await res.json(), ...savedResumes])
-        setShowSavePrompt(false)
-        setResumeName("")
-      }
-    } catch {
-      setError("Failed to save")
-    }
-  }
-
-  if (status === "loading") return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-    const handleGenerateCoverLetter = async () => {
+  const handleGenerateCoverLetter = async () => {
     setGeneratingCoverLetter(true)
     try {
       const res = await fetch("/api/cover-letters", {
@@ -137,6 +84,7 @@ export default function Assessment() {
     }
   }
 
+  if (status === "loading") return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   if (!session) return null
 
   return (
@@ -154,20 +102,10 @@ export default function Assessment() {
           <input type="text" placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none" />
         </div>
 
-        {savedResumes.length > 0 && (
-          <div className="mb-6">
-            <label className="block text-gray-700 font-semibold mb-2">Load saved resume:</label>
-            <select onChange={(e) => handleLoadResume(e.target.value)} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg">
-              <option value="">-- Select resume --</option>
-              {savedResumes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="card">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Your Resume</h2>
-            <textarea value={resume} onChange={(e) => setResume(e.target.value)} placeholder="Paste resume or select saved..." className="textarea-input h-80" />
+            <textarea value={resume} onChange={(e) => setResume(e.target.value)} placeholder="Paste resume here..." className="textarea-input h-80" />
           </div>
           <div className="card">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Job Description</h2>
@@ -183,20 +121,9 @@ export default function Assessment() {
 
         {error && <div className="bg-red-100 border-2 border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">{error}</div>}
 
-        {showSavePrompt && result && (
-          <div className="bg-blue-100 border-2 border-blue-400 rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-bold text-blue-900 mb-4">Save this resume?</h3>
-            <div className="flex gap-4 items-end">
-              <input type="text" placeholder="Resume name" value={resumeName} onChange={(e) => setResumeName(e.target.value)} className="flex-1 px-4 py-2 border-2 border-blue-300 rounded-lg" />
-              <button onClick={handleSaveResume} className="btn-primary">Save</button>
-              <button onClick={() => setShowSavePrompt(false)} className="btn-secondary">Skip</button>
-            </div>
-          </div>
-        )}
-
         {result && (
           <div className="card bg-gradient-to-r from-blue-50 to-indigo-50">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Results</h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">Assessment Results</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <div className="bg-white rounded-lg p-4 shadow">
                 <p className="text-gray-600 text-sm mb-1">Verdict</p>
@@ -235,11 +162,36 @@ export default function Assessment() {
                 {result.missingKeywords.map((k, i) => <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">{k}</span>)}
               </div>
             </div>
+
+            <div className="mt-8 border-t-2 border-gray-300 pt-8">
+              <h3 className="text-2xl font-bold text-indigo-600 mb-4">Generate Cover Letter</h3>
+              <div className="mb-4">
+                <label className="block text-gray-700 font-semibold mb-2">Tone:</label>
+                <select value={coverLetterTone} onChange={(e) => setCoverLetterTone(e.target.value)} className="px-4 py-2 border-2 border-gray-300 rounded-lg">
+                  <option value="professional">Professional</option>
+                  <option value="enthusiastic">Enthusiastic</option>
+                  <option value="creative">Creative</option>
+                  <option value="formal">Formal</option>
+                </select>
+              </div>
+              <button onClick={handleGenerateCoverLetter} disabled={generatingCoverLetter} className={`btn-primary ${generatingCoverLetter ? "opacity-50 cursor-not-allowed" : ""}`}>
+                {generatingCoverLetter ? "Generating..." : "Generate Cover Letter"}
+              </button>
+            </div>
+
+            {coverLetter && (
+              <div className="mt-6 bg-white rounded-lg p-6 shadow">
+                <h4 className="text-xl font-bold text-gray-800 mb-4">Your Cover Letter</h4>
+                <textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none h-64" />
+                <div className="flex gap-3 mt-4">
+                  <button onClick={() => navigator.clipboard.writeText(coverLetter)} className="btn-primary">Copy to Clipboard</button>
+                  <button className="btn-secondary">Download</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   )
 }
-
-
