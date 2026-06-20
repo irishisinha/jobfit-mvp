@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../lib/auth'
-import { analyzeJobFit } from '../../lib/groq'
+import { authOptions } from '../../../lib/auth'
+import { analyzeJobFit } from '../../../lib/groq'
 
 export const maxDuration = 60
 
