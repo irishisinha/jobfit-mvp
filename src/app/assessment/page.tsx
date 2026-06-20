@@ -33,6 +33,9 @@ export default function Assessment() {
   const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
   const [resumeName, setResumeName] = useState("")
   const [showSavePrompt, setShowSavePrompt] = useState(false)
+  const [coverLetter, setCoverLetter] = useState("")
+  const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false)
+  const [coverLetterTone, setCoverLetterTone] = useState("professional")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -107,6 +110,33 @@ export default function Assessment() {
   }
 
   if (status === "loading") return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    const handleGenerateCoverLetter = async () => {
+    setGeneratingCoverLetter(true)
+    try {
+      const res = await fetch("/api/cover-letters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume,
+          jobDescription,
+          jobTitle,
+          company,
+          tone: coverLetterTone,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCoverLetter(data.content)
+      } else {
+        setError("Failed to generate cover letter")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error")
+    } finally {
+      setGeneratingCoverLetter(false)
+    }
+  }
+
   if (!session) return null
 
   return (
@@ -211,3 +241,5 @@ export default function Assessment() {
     </div>
   )
 }
+
+
