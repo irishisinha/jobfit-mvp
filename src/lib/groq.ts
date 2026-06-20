@@ -7,6 +7,10 @@ const groq = new Groq({
 
 export async function analyzeJobFit(resume: string, jobDescription: string) {
   try {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY is not set')
+    }
+
     const userPrompt = `
 RESUME:
 ${resume}
@@ -28,6 +32,7 @@ Provide a detailed job fit assessment in JSON format with the following structur
 Return ONLY valid JSON, no markdown formatting.
 `
 
+    console.log('[GROQ] Sending request to Groq API')
     const completion = await groq.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       max_tokens: 1024,
@@ -43,15 +48,18 @@ Return ONLY valid JSON, no markdown formatting.
       ],
     })
 
+    console.log('[GROQ] Got response from Groq')
     const content = completion.choices[0]?.message?.content
     if (!content) {
-      throw new Error('No response from Groq API')
+      throw new Error('No content in Groq response')
     }
 
+    console.log('[GROQ] Parsing JSON response')
     const result = JSON.parse(content)
+    console.log('[GROQ] Successfully parsed result')
     return result
   } catch (error) {
-    console.error('Groq API Error:', error)
+    console.error('[GROQ] Error:', error)
     throw error
   }
 }
