@@ -148,7 +148,7 @@ export default function Assessment() {
 
               <div className="bg-white rounded-lg p-4 shadow">
                 <p className="text-gray-600 text-sm mb-1">Fit Score</p>
-                <p className="text-2xl font-bold text-blue-600">{result.fitScore}/10</p>
+                <p className="text-2xl font-bold text-blue-600">{(result.fitScore / 10).toFixed(1)}/10</p>
               </div>
 
               <div className="bg-white rounded-lg p-4 shadow">
@@ -208,3 +208,4 @@ export default function Assessment() {
     </div>
   )
 }
+
