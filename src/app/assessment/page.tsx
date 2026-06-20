@@ -69,6 +69,9 @@ export default function Assessment() {
           jobTitle,
           company,
           tone: coverLetterTone,
+          strengths: result?.strengths || [],
+          gaps: result?.gaps || [],
+          missingKeywords: result?.missingKeywords || [],
         }),
       })
       if (res.ok) {
@@ -195,3 +198,4 @@ export default function Assessment() {
     </div>
   )
 }
+
