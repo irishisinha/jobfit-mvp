@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../lib/auth'
-import Groq from 'groq-sdk'
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "../../../lib/auth"
+import Groq from "groq-sdk"
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -13,7 +13,14 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    let body
+    try {
+      body = await req.json()
+    } catch (e) {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
     }
 
     const {
@@ -21,35 +28,39 @@ export async function POST(req: NextRequest) {
       jobDescription,
       jobTitle,
       company,
-      tone = 'professional',
+      tone = "professional",
       strengths = [],
       gaps = [],
       missingKeywords = [],
-    } = await req.json()
+    } = body
 
-    if (!resume || !jobDescription) {
-      return NextResponse.json({ error: 'Missing data' }, { status: 400 })
+    if (!resume?.trim() || !jobDescription?.trim()) {
+      return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "Server error: GROQ_API_KEY not set" }, { status: 500 })
     }
 
     const strengthsList = strengths.length > 0 
-      ? strengths.map((s: string, i: number) => `${i + 1}. ${s}`).join('\n')
-      : 'N/A'
+      ? strengths.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")
+      : "N/A"
 
     const gapsList = gaps.length > 0 
-      ? gaps.map((g: string, i: number) => `${i + 1}. ${g}`).join('\n')
-      : 'N/A'
+      ? gaps.map((g: string, i: number) => `${i + 1}. ${g}`).join("\n")
+      : "N/A"
 
     const keywordsList = missingKeywords.length > 0 
-      ? missingKeywords.join(', ')
-      : 'N/A'
+      ? missingKeywords.join(", ")
+      : "N/A"
 
     const prompt = `You are an expert career coach writing a TRUTHFUL, STRATEGIC cover letter.
 
 CRITICAL RULES - MUST FOLLOW:
-1. ONLY mention skills/experience that are EXPLICITLY in the resume
+1. ONLY mention skills/experience EXPLICITLY in the resume
 2. NEVER claim false expertise or experience
 3. When addressing gaps: show willingness to learn, NOT fake expertise
-4. Reframe experience TRUTHFULLY (show how existing skills genuinely transfer)
+4. Reframe experience TRUTHFULLY (show how skills genuinely transfer)
 5. Be authentic and honest - dishonesty backfires in interviews
 6. If a gap cannot be addressed truthfully, acknowledge it positively
 
@@ -57,8 +68,8 @@ CANDIDATE'S RESUME:
 ${resume}
 
 JOB DETAILS:
-Position: ${jobTitle || 'Position'}
-Company: ${company || 'Company'}
+Position: ${jobTitle || "Position"}
+Company: ${company || "Company"}
 
 JOB DESCRIPTION:
 ${jobDescription}
@@ -89,38 +100,41 @@ Write a compelling, TRUTHFUL cover letter that:
 7. Maintain a ${tone} tone
 8. Keep it 3-4 paragraphs, about 250-300 words
 
-MOST IMPORTANT: This letter will be read by real people. Dishonesty will be caught in interviews. Make it compelling through AUTHENTICITY, not exaggeration.
+MOST IMPORTANT: Dishonesty will be caught in interviews. Make it compelling through AUTHENTICITY, not exaggeration.
 
 Return ONLY the cover letter text, no headers or explanations.`
 
-    console.log('[COVER-LETTER] Generating truthful, strategic cover letter...')
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: "llama-3.1-8b-instant",
       max_tokens: 1024,
       messages: [
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
     })
 
     const content = completion.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from Groq')
-    }
 
-    console.log('[COVER-LETTER] Generated successfully')
+    if (!content) {
+      return NextResponse.json({ error: "Groq returned empty response" }, { status: 500 })
+    }
 
     return NextResponse.json({
       content,
       tone,
     })
   } catch (error) {
-    console.error('[COVER-LETTER] Error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : "Unknown"
+    
     return NextResponse.json(
-      { error: 'Failed to generate cover letter', details: errorMessage },
+      {
+        error: "Failed to generate cover letter",
+        type: errorName,
+        message: errorMsg,
+      },
       { status: 500 }
     )
   }

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../lib/auth'
-import Groq from 'groq-sdk'
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "../../../lib/auth"
+import Groq from "groq-sdk"
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -13,7 +13,14 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    let body
+    try {
+      body = await req.json()
+    } catch (e) {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
     }
 
     const {
@@ -24,10 +31,14 @@ export async function POST(req: NextRequest) {
       recipientName,
       recipientRole,
       strengths = [],
-    } = await req.json()
+    } = body
 
-    if (!resume || !jobDescription) {
-      return NextResponse.json({ error: 'Missing data' }, { status: 400 })
+    if (!resume?.trim() || !jobDescription?.trim()) {
+      return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "Server error: GROQ_API_KEY not set" }, { status: 500 })
     }
 
     const prompt = `You are an expert LinkedIn outreach specialist writing a personalized connection message.
@@ -47,18 +58,18 @@ CANDIDATE PROFILE:
 Resume: ${resume}
 
 TARGET COMPANY & ROLE:
-Company: ${company || 'Company'}
-Position: ${jobTitle || 'Position'}
+Company: ${company || "Company"}
+Position: ${jobTitle || "Position"}
 
 JOB DESCRIPTION:
 ${jobDescription}
 
 RECIPIENT (who you're messaging):
-Name: ${recipientName || 'Hiring Manager/Recruiter'}
-Role: ${recipientRole || 'Not specified'}
+Name: ${recipientName || "Hiring Manager/Recruiter"}
+Role: ${recipientRole || "Not specified"}
 
 KEY STRENGTHS TO POTENTIALLY REFERENCE:
-${strengths.length > 0 ? strengths.slice(0, 2).join(', ') : 'General experience'}
+${strengths.length > 0 ? strengths.slice(0, 2).join(", ") : "General experience"}
 
 Write a personalized LinkedIn connection/outreach message that:
 1. Opens with a genuine compliment or specific reason for connecting
@@ -71,34 +82,37 @@ Write a personalized LinkedIn connection/outreach message that:
 
 Return ONLY the message text, ready to paste into LinkedIn.`
 
-    console.log('[LINKEDIN-OUTREACH] Generating LinkedIn message...')
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: "llama-3.1-8b-instant",
       max_tokens: 512,
       messages: [
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
     })
 
     const content = completion.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response from Groq')
-    }
 
-    console.log('[LINKEDIN-OUTREACH] Generated successfully')
+    if (!content) {
+      return NextResponse.json({ error: "Groq returned empty response" }, { status: 500 })
+    }
 
     return NextResponse.json({
       content,
-      recipient: recipientName || 'Hiring Manager',
+      recipient: recipientName || "Hiring Manager",
     })
   } catch (error) {
-    console.error('[LINKEDIN-OUTREACH] Error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : "Unknown"
+    
     return NextResponse.json(
-      { error: 'Failed to generate LinkedIn message', details: errorMessage },
+      {
+        error: "Failed to generate LinkedIn message",
+        type: errorName,
+        message: errorMsg,
+      },
       { status: 500 }
     )
   }

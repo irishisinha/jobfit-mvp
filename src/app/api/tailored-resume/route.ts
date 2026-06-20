@@ -16,6 +16,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    let body
+    try {
+      body = await req.json()
+    } catch (e) {
+      return NextResponse.json({ error: "Invalid JSON in request" }, { status: 400 })
+    }
+
     const {
       resume,
       jobDescription,
@@ -24,26 +31,30 @@ export async function POST(req: NextRequest) {
       strengths = [],
       gaps = [],
       missingKeywords = [],
-    } = await req.json()
+    } = body
 
-    if (!resume || !jobDescription) {
-      return NextResponse.json({ error: "Missing data" }, { status: 400 })
+    if (!resume?.trim() || !jobDescription?.trim()) {
+      return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "Server error: GROQ_API_KEY not set" }, { status: 500 })
     }
 
     const keywordsList = missingKeywords.length > 0 
       ? missingKeywords.join(", ")
       : ""
 
-    const prompt = `You are an expert resume writer OPTIMIZING (not rewriting) a resume for a specific job.
+    const prompt = `You are an expert resume writer OPTIMIZING a resume for a specific job.
 
-CRITICAL TRUTHFULNESS RULES - MUST FOLLOW:
-1. ONLY reorganize and reframe EXISTING experience - NEVER add false skills or jobs
-2. ONLY add keywords that legitimately match the candidate's actual strengths and experience
-3. Do NOT add keywords just because they appear in the job description
-4. If a keyword doesn't fit the candidate's real background, SKIP it
-5. Reorganize bullet points to emphasize ACTUAL relevant accomplishments
-6. Use stronger action verbs for REAL achievements
-7. Be authentic and stay truthful - optimization, not fabrication
+CRITICAL RULES:
+1. ONLY reorganize existing experience - NEVER add false skills
+2. ONLY add keywords that legitimately match actual strengths and experience
+3. Skip keywords that don't fit - don't force them
+4. Use stronger action verbs for REAL achievements
+5. Quantify real results (metrics, percentages, impact)
+6. Maintain all original facts - NOTHING FABRICATED
+7. Keep same format/structure but optimize for THIS job
 
 ORIGINAL RESUME:
 ${resume}
@@ -55,30 +66,23 @@ Company: ${company || "Company"}
 JOB DESCRIPTION:
 ${jobDescription}
 
-CANDIDATE'S ACTUAL STRENGTHS (from resume analysis):
-${strengths.length > 0 ? strengths.join(" | ") : "Evaluate from resume"}
+CANDIDATE'S ACTUAL STRENGTHS:
+${strengths.length > 0 ? strengths.join(" | ") : "Analyze from resume"}
 
-KEYWORDS AVAILABLE (only add if legitimately applicable):
+KEYWORDS (only if legitimate):
 ${keywordsList}
 
-GAPS TO ACKNOWLEDGE (if possible through truthful reframing):
-${gaps.length > 0 ? gaps.join(" | ") : "None"}
+Optimize by:
+1. Reorganize bullets to prioritize actual relevant achievements
+2. Use stronger action verbs for real accomplishments
+3. Quantify real results
+4. Highlight genuine transferable skills
+5. ONLY add keywords that legitimately fit
+6. Skip keywords that don't match actual background
+7. Honest optimization, not fabrication
 
-Optimize the resume by:
-1. Reorganizing bullet points to prioritize ACTUAL relevant achievements for this job
-2. Using stronger action verbs for REAL accomplishments
-3. Quantifying results (metrics, percentages, impact) that are REAL
-4. Highlighting transferable skills that GENUINELY apply to the role
-5. ONLY adding keywords that LEGITIMATELY fit the candidate's actual experience
-6. If a keyword doesn't match their real background, SKIP it - don't force it
-7. Maintain all original facts - NOTHING IS MADE UP
-8. Keep same format/structure but optimize for THIS job
+Return the optimized resume in same format as original.`
 
-MOST IMPORTANT: Optimize through honest presentation, not by inventing skills or experience. Better to skip a keyword than to dishonestly add it.
-
-Return the complete, optimized resume in the same format as the original.`
-
-    console.log("[TAILORED-RESUME] Generating truthful, tailored resume...")
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       max_tokens: 2048,
@@ -91,21 +95,25 @@ Return the complete, optimized resume in the same format as the original.`
     })
 
     const content = completion.choices[0]?.message?.content
-    if (!content) {
-      throw new Error("No response from Groq")
-    }
 
-    console.log("[TAILORED-RESUME] Generated successfully")
+    if (!content) {
+      return NextResponse.json({ error: "Groq returned empty response" }, { status: 500 })
+    }
 
     return NextResponse.json({
       content,
       originalResume: resume,
     })
   } catch (error) {
-    console.error("[TAILORED-RESUME] Error:", error)
-    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : "Unknown"
+    
     return NextResponse.json(
-      { error: "Failed to generate tailored resume", details: errorMessage },
+      {
+        error: "Failed to generate tailored resume",
+        type: errorName,
+        message: errorMsg,
+      },
       { status: 500 }
     )
   }
