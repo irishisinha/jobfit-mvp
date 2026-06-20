@@ -43,7 +43,15 @@ export async function POST(req: NextRequest) {
       ? missingKeywords.join(', ')
       : 'N/A'
 
-    const prompt = `You are an expert career coach writing a strategic cover letter.
+    const prompt = `You are an expert career coach writing a TRUTHFUL, STRATEGIC cover letter.
+
+CRITICAL RULES - MUST FOLLOW:
+1. ONLY mention skills/experience that are EXPLICITLY in the resume
+2. NEVER claim false expertise or experience
+3. When addressing gaps: show willingness to learn, NOT fake expertise
+4. Reframe experience TRUTHFULLY (show how existing skills genuinely transfer)
+5. Be authentic and honest - dishonesty backfires in interviews
+6. If a gap cannot be addressed truthfully, acknowledge it positively
 
 CANDIDATE'S RESUME:
 ${resume}
@@ -56,34 +64,36 @@ JOB DESCRIPTION:
 ${jobDescription}
 
 ASSESSMENT INSIGHTS:
-Strengths to highlight:
+Strengths to highlight (from resume):
 ${strengthsList}
 
-Experience gaps to address thoughtfully:
+Experience gaps to address TRUTHFULLY:
 ${gapsList}
 
-Keywords to naturally incorporate:
+Keywords to naturally incorporate (only if they fit):
 ${keywordsList}
 
 TONE: ${tone}
 
-Write a compelling cover letter that:
-1. Opens with genuine interest in THIS specific role and company (not generic)
-2. Strategically highlight the candidate's key strengths that directly address the job requirements
-3. Address experience gaps intelligently by:
-   - Showing how transferable skills apply
-   - Demonstrating eagerness to learn
-   - Reframing related experience where applicable
-   - Being honest but positive about gaps
-4. Naturally weave in the missing keywords where relevant
+Write a compelling, TRUTHFUL cover letter that:
+1. Opens with genuine interest in THIS specific role and company
+2. Highlight the candidate's ACTUAL key strengths that apply to the job
+3. Address gaps TRUTHFULLY by:
+   - Showing how existing skills transfer (with concrete examples from resume)
+   - Demonstrating genuine eagerness to learn and grow
+   - Being honest if a skill is new but showing related experience
+   - Reframing experience positively WITHOUT lying
+4. Incorporate missing keywords ONLY if they fit the candidate's actual experience
 5. Show understanding of what makes this role/company unique
-6. Close with confidence and specific value proposition
-7. Maintain a ${tone} tone throughout
+6. Close with confidence in genuine value proposition
+7. Maintain a ${tone} tone
 8. Keep it 3-4 paragraphs, about 250-300 words
+
+MOST IMPORTANT: This letter will be read by real people. Dishonesty will be caught in interviews. Make it compelling through AUTHENTICITY, not exaggeration.
 
 Return ONLY the cover letter text, no headers or explanations.`
 
-    console.log('[COVER-LETTER] Generating strategic cover letter...')
+    console.log('[COVER-LETTER] Generating truthful, strategic cover letter...')
     const completion = await groq.chat.completions.create({
       model: 'llama-3.1-8b-instant',
       max_tokens: 1024,
