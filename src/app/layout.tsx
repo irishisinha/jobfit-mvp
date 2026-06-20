@@ -1,11 +1,11 @@
+'use client'
+
 import type { Metadata } from 'next'
 import { SessionProvider } from 'next-auth/react'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: 'JobFit - AI Job Assessment',
-  description: 'AI-powered job fit assessment tool',
-}
+// Note: Metadata export is not supported in client components
+// For SEO, consider using a server component wrapper or next/head
 
 export default function RootLayout({
   children,
@@ -14,6 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <title>JobFit - AI Job Assessment</title>
+        <meta name="description" content="AI-powered job fit assessment tool" />
+      </head>
       <body>
         <SessionProvider>
           {children}

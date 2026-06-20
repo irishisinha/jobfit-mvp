@@ -63,6 +63,10 @@ export default function Assessment() {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 
+  if (!session) {
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
       <div className="container-main">
