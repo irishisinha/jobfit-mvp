@@ -112,7 +112,7 @@ export default function ConsistencyCheckerPage() {
                     {resumes.map((r) => (
                       <div key={r.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                         <span className="font-semibold">{r.name}</span>
-                        <span className="text-xs text-gray-500">({r.content.split(" ").length} words)</span>
+                        <span className="text-xs text-gray-500">({typeof r.content === 'string' ? r.content.split(" ").length : 0} words)</span>
                       </div>
                     ))}
                   </div>
