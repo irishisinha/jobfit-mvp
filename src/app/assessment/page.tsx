@@ -4,7 +4,6 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Document, Packer, Paragraph, HeadingLevel } from "docx"
 
 interface SavedResume {
   id: string
@@ -36,8 +35,8 @@ export default function Assessment() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedResume, setSelectedResume] = useState<SavedResume | null>(null)
-  const [step, setStep] = useState<"input" | "select" | "results">("input")
-  const [clTone, setClTone] = useState("professional")
+  const [allResumes, setAllResumes] = useState<SavedResume[]>([])
+  const [step, setStep] = useState<"input" | "results">("input")
   const [coverLetter, setCoverLetter] = useState("")
   const [tailoredResume, setTailoredResume] = useState("")
   const [linkedInMessage, setLinkedInMessage] = useState("")
@@ -69,11 +68,17 @@ export default function Assessment() {
       return
     }
 
+    if (savedResumes.length === 0) {
+      setError("Please save at least one resume first")
+      return
+    }
+
     setLoading(true)
     setError("")
+    setStep("results")
 
     try {
-      // Score all saved resumes against this job
+      // Score all saved resumes against this job (in parallel)
       const scored = await Promise.all(
         savedResumes.map(async (resume) => {
           try {
@@ -92,20 +97,44 @@ export default function Assessment() {
         })
       )
 
-      setSavedResumes(scored.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0)))
-      setStep("select")
+      // Sort by match score
+      const sorted = scored.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+      setAllResumes(sorted)
+
+      // Auto-select the top resume
+      const topResume = sorted[0]
+      setSelectedResume(topResume)
+
+      // Run assessment on top resume
+      const assessRes = await fetch("/api/assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume: topResume.content,
+          jobDescription,
+          jobTitle,
+          company,
+        }),
+      })
+
+      if (!assessRes.ok) throw new Error("Assessment failed")
+      const assessData = await assessRes.json()
+      setResult(assessData)
     } catch (err) {
-      setError("Failed to analyze resumes")
+      setError("Failed to analyze job and resumes")
+      setStep("input")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSelectResume = async (resume: SavedResume) => {
+  const handleSelectDifferentResume = async (resume: SavedResume) => {
     setSelectedResume(resume)
-    setStep("results")
+    setResult(null)
+    setCoverLetter("")
+    setTailoredResume("")
+    setLinkedInMessage("")
     setLoading(true)
-    setError("")
 
     try {
       const res = await fetch("/api/assess", {
@@ -123,8 +152,7 @@ export default function Assessment() {
       const data = await res.json()
       setResult(data)
     } catch (err) {
-      setError("Assessment failed")
-      setStep("select")
+      setError("Failed to assess this resume")
     } finally {
       setLoading(false)
     }
@@ -142,7 +170,6 @@ export default function Assessment() {
           jobDescription,
           jobTitle,
           company,
-          tone: clTone,
           strengths: result.strengths,
           gaps: result.gaps,
           missingKeywords: result.missingKeywords,
@@ -206,7 +233,7 @@ export default function Assessment() {
         <div className="container-main py-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold">JobFit Assessment</h1>
           <div className="flex gap-3">
-            <Link href="/resumes" className="btn-secondary">My Resumes</Link>
+            <Link href="/resumes" className="btn-secondary">My Resumes ({savedResumes.length})</Link>
             <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
             <button onClick={() => signOut()} className="btn-secondary">Sign Out</button>
           </div>
@@ -215,15 +242,15 @@ export default function Assessment() {
 
       <div className="container-main py-8">
         {step === "input" && (
-          <div className="bg-white rounded-lg p-8 shadow">
-            <h2 className="text-2xl font-bold mb-6">Enter Job Details</h2>
-            <div className="mb-4">
+          <div className="bg-white rounded-lg p-8 shadow max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">Analyze a Job</h2>
+            <div className="mb-6">
               <label className="block text-sm font-bold mb-2">Job Description</label>
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste the full job description..."
-                className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg"
+                placeholder="Paste the job description..."
+                className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm"
               />
             </div>
             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -245,43 +272,28 @@ export default function Assessment() {
             {error && <div className="bg-red-100 border-2 border-red-500 text-red-800 p-4 rounded-lg mb-4">{error}</div>}
             <button
               onClick={handleAnalyzeJob}
-              disabled={loading || !jobDescription.trim()}
-              className={`px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
+              disabled={loading || !jobDescription.trim() || savedResumes.length === 0}
+              className={`w-full px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
             >
-              {loading ? "Analyzing..." : "Analyze Job & Show Resume Matches"}
+              {loading ? "Analyzing..." : "Analyze & Get Recommendation"}
             </button>
-          </div>
-        )}
-
-        {step === "select" && savedResumes.length > 0 && (
-          <div className="bg-white rounded-lg p-8 shadow">
-            <h2 className="text-2xl font-bold mb-6">Select Resume for This Job</h2>
-            <p className="text-gray-600 mb-6">Your resumes ranked by match score:</p>
-            <div className="space-y-3">
-              {savedResumes.map((resume) => (
-                <div key={resume.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-4 flex justify-between items-center">
-                  <div>
-                    <h3 className="text-lg font-bold">{resume.name}</h3>
-                    <p className="text-sm text-gray-600">Match Score: {resume.matchScore}%</p>
-                  </div>
-                  <button
-                    onClick={() => handleSelectResume(resume)}
-                    className="btn-primary"
-                  >
-                    Use This Resume
-                  </button>
-                </div>
-              ))}
-            </div>
+            {savedResumes.length === 0 && (
+              <p className="text-center text-red-600 mt-4 font-semibold">
+                Save at least one resume first in <Link href="/resumes" className="underline">My Resumes</Link>
+              </p>
+            )}
           </div>
         )}
 
         {step === "results" && result && selectedResume && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg p-8 shadow">
-              <h2 className="text-2xl font-bold mb-2">Assessment Results for "{selectedResume.name}"</h2>
-              <p className="text-gray-600 mb-6">Job: {jobTitle} at {company}</p>
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-500">
+              <p className="text-sm text-green-700 font-bold mb-2">RECOMMENDED RESUME</p>
+              <h2 className="text-2xl font-bold text-gray-800">{selectedResume.name}</h2>
+              <p className="text-gray-600">Match Score: {selectedResume.matchScore}% for {jobTitle} at {company}</p>
+            </div>
 
+            <div className="bg-white rounded-lg p-8 shadow">
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <p className="text-gray-600 text-sm mb-1">Verdict</p>
@@ -313,14 +325,14 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.strengths || []).map((s, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-green-600 mr-2">→</span>
+                        <span className="text-green-600 mr-2">✓</span>
                         <span>{s}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-red-600 mb-3">Gaps</h3>
+                  <h3 className="text-lg font-bold text-red-600 mb-3">Gaps to Address</h3>
                   <ul className="space-y-2">
                     {(result.gaps || []).map((g, i) => (
                       <li key={i} className="flex items-start">
@@ -333,7 +345,7 @@ export default function Assessment() {
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-yellow-600 mb-3">Missing Keywords</h3>
+                <h3 className="text-lg font-bold text-yellow-600 mb-3">Keywords to Add</h3>
                 <div className="flex flex-wrap gap-2">
                   {(result.missingKeywords || []).map((k, i) => (
                     <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
@@ -348,36 +360,54 @@ export default function Assessment() {
               <div className="bg-white rounded-lg p-6 shadow">
                 <h3 className="text-lg font-bold text-blue-600 mb-4">📄 Cover Letter</h3>
                 {coverLetter ? (
-                  <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-xs font-mono" />
+                  <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
                   <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">
-                    Generate Cover Letter
+                    Generate
                   </button>
                 )}
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-green-600 mb-4">📋 Tailored Resume</h3>
+                <h3 className="text-lg font-bold text-green-600 mb-4">📋 Tailor Resume</h3>
                 {tailoredResume ? (
-                  <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-xs font-mono" />
+                  <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
-                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 30} className={`w-full ${result.tailorWorth < 30 ? "btn-secondary opacity-50" : "btn-primary"}`}>
-                    {result.tailorWorth < 30 ? "Already Good Fit" : "Generate Tailored Resume"}
+                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 30} className={`w-full ${result.tailorWorth < 30 ? "opacity-50 cursor-not-allowed" : ""} btn-primary`}>
+                    {result.tailorWorth < 30 ? "Already Optimized" : "Generate"}
                   </button>
                 )}
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-purple-600 mb-4">💼 LinkedIn Message</h3>
+                <h3 className="text-lg font-bold text-purple-600 mb-4">💼 LinkedIn</h3>
                 {linkedInMessage ? (
-                  <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-xs font-mono" />
+                  <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
                   <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">
-                    Generate LinkedIn Message
+                    Generate
                   </button>
                 )}
               </div>
             </div>
+
+            {allResumes.length > 1 && (
+              <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200">
+                <h3 className="text-lg font-bold text-gray-700 mb-4">Try Other Resumes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {allResumes.slice(1).map((resume) => (
+                    <button
+                      key={resume.id}
+                      onClick={() => handleSelectDifferentResume(resume)}
+                      className="text-left p-3 rounded-lg border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition"
+                    >
+                      <p className="font-bold text-gray-800">{resume.name}</p>
+                      <p className="text-sm text-gray-600">Match: {resume.matchScore}%</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button onClick={() => setStep("input")} className="w-full btn-secondary py-3 text-lg font-bold">
               Analyze Another Job
