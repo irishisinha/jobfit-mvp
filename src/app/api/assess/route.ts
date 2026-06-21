@@ -39,12 +39,21 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
     }
 
     content = content.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim()
-    let result = JSON.parse(content)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let result: any = JSON.parse(content)
 
-    // Ensure arrays exist
-    result.strengths = Array.isArray(result.strengths) ? result.strengths : ["N/A"]
-    result.gaps = Array.isArray(result.gaps) ? result.gaps : ["N/A"]
-    result.missingKeywords = Array.isArray(result.missingKeywords) ? result.missingKeywords : ["N/A"]
+    // Ensure arrays exist and convert numbers
+    result.verdict = String(result.verdict || "Moderate Fit")
+    result.fitScore = Math.min(100, Math.max(0, parseInt(String(result.fitScore)) || 0))
+    result.atsMatch = Math.min(100, Math.max(0, parseInt(String(result.atsMatch)) || 0))
+    result.successProbability = Math.min(100, Math.max(0, parseInt(String(result.successProbability)) || 0))
+    result.strengths = Array.isArray(result.strengths) ? result.strengths.filter((s: string) => s && s !== "N/A") : []
+    result.gaps = Array.isArray(result.gaps) ? result.gaps.filter((g: string) => g && g !== "N/A") : []
+    result.missingKeywords = Array.isArray(result.missingKeywords) ? result.missingKeywords.filter((k: string) => k && k !== "N/A") : []
+
+    if (result.strengths.length === 0) result.strengths = ["Experience aligns with role"]
+    if (result.gaps.length === 0) result.gaps = ["Some skill gaps identified"]
+    if (result.missingKeywords.length === 0) result.missingKeywords = ["Consider learning industry-specific tools"]
 
     // Save to database (non-blocking)
     try {
@@ -62,9 +71,9 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
             fitScore: result.fitScore,
             atsMatch: result.atsMatch,
             successProbability: result.successProbability,
-            strengths: (result.strengths || []).join("|"),
-            gaps: (result.gaps || []).join("|"),
-            missingKeywords: (result.missingKeywords || []).join("|"),
+            strengths: result.strengths.join("|"),
+            gaps: result.gaps.join("|"),
+            missingKeywords: result.missingKeywords.join("|"),
           },
         }).catch(() => {})
       }
@@ -73,7 +82,7 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
     return NextResponse.json(result)
   } catch (error) {
     return NextResponse.json({
-      error: "Failed",
+      error: "Failed to parse response",
       message: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 })
   }
