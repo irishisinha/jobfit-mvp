@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json([])
     }
 
     const user = await prisma.user.findUnique({
@@ -31,7 +31,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(resumes)
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch resumes" }, { status: 500 })
+    console.error("GET resumes error:", error)
+    return NextResponse.json([])
   }
 }
 
@@ -39,33 +40,46 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { name, content } = await req.json()
+    const body = await req.json()
+    const { name, content } = body
 
-    if (!name || !content) {
-      return NextResponse.json({ error: "Name and content required" }, { status: 400 })
+    if (!name?.trim()) {
+      return NextResponse.json({ error: "Resume name required" }, { status: 400 })
+    }
+    if (!content?.trim()) {
+      return NextResponse.json({ error: "Resume content required" }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: session.user.email },
     })
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+      user = await prisma.user.create({
+        data: {
+          email: session.user.email,
+          name: session.user.name || "User",
+        },
+      })
     }
 
     const resume = await prisma.resume.create({
       data: {
         userId: user.id,
-        name,
-        content,
+        name: name.trim(),
+        content: content.trim(),
       },
     })
 
-    return NextResponse.json(resume)
+    return NextResponse.json(resume, { status: 201 })
   } catch (error) {
-    return NextResponse.json({ error: "Failed to save resume" }, { status: 500 })
+    console.error("POST resume error:", error)
+    return NextResponse.json(
+      { error: "Failed to save resume", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    )
   }
 }
