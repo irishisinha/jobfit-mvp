@@ -14,50 +14,47 @@ export async function POST(req: NextRequest) {
 
     const { resume, jobDescription, jobTitle, company } = await req.json()
 
-    if (!resume || !jobDescription) {
-      return NextResponse.json({ error: "Missing resume or job description" }, { status: 400 })
+    if (!resume?.trim() || !jobDescription?.trim()) {
+      return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 3000,
+      max_tokens: 2000,
       messages: [{
         role: "user",
-        content: `TASK: Rewrite ONLY the provided resume below. DO NOT create a new resume. DO NOT add false information. Just reorganize and optimize the existing content.
+        content: `Rewrite resume optimized for job. Keep ALL information truthful.
 
-TARGET JOB: ${jobTitle} at ${company}
+ORIGINAL RESUME:
+${resume.substring(0, 1200)}
 
-JOB DESCRIPTION:
-${jobDescription}
+JOB: ${jobTitle} at ${company}
 
-PROVIDED RESUME (rewrite this exactly as-is, just reorganized):
-${resume}
+REQUIREMENTS:
+${jobDescription.substring(0, 800)}
 
 INSTRUCTIONS:
-1. Keep every fact from the original resume
-2. Reorganize bullet points to emphasize achievements matching the job
-3. Use stronger action verbs where applicable
-4. Highlight relevant experience
-5. Maintain exact same structure and format
-6. Return the complete rewritten resume - all of it
+- Reorganize to highlight matching skills
+- Keep all existing information (NO LIES)
+- Use stronger action verbs
+- Reorder by job relevance
+- Return COMPLETE resume
 
-START THE REWRITTEN RESUME NOW:`
+START REWRITTEN RESUME:`
       }],
     })
 
     const content = completion.choices[0]?.message?.content
 
-    if (!content) {
-      return NextResponse.json({ error: "No response from Groq" }, { status: 500 })
+    if (!content || content.length < 50) {
+      return NextResponse.json({ tailoredResume: resume })
     }
 
     return NextResponse.json({ tailoredResume: content })
   } catch (error) {
-    return NextResponse.json({
-      error: "Failed",
-      message: error instanceof Error ? error.message : "Unknown error"
-    }, { status: 500 })
+    console.error("Tailored resume error:", error)
+    return NextResponse.json({ tailoredResume: "" })
   }
 }
