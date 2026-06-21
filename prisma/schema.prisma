@@ -1,10 +1,10 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./prisma/dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -18,89 +18,88 @@ model User {
   assessments   Assessment[]
   savedResumes Resume[]
   coverLetters  CoverLetter[]
-  resumes       TailoredResume[]
+  tailoredResumes TailoredResume[]
+  linkedInMessages LinkedInMessage[]
+}
+
+model Resume {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  assessments Assessment[]
+  
+  @@index([userId])
 }
 
 model Assessment {
   id                    String   @id @default(cuid())
   userId                String
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeId              String?
+  resume                Resume?  @relation(fields: [resumeId], references: [id], onDelete: SetNull)
   
-  resume                String
-  jobDescription        String
-  jobTitle              String?
+  jobDescription        String   @db.Text
+  jobTitle              String
   company               String?
   
   verdict               String
   fitScore              Int
   atsMatch              Int
   successProbability    Int
-  strengths             String
-  gaps                  String
-  missingKeywords       String
+  tailorWorth           Int
   
-  coverLetter           CoverLetter?
-  tailoredResume        TailoredResume?
+  strengths             String[]
+  gaps                  String[]
+  missingKeywords       String[]
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
   @@index([userId])
+  @@index([resumeId])
 }
 
 model CoverLetter {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  assessmentId  String   @unique
-  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessmentId String?
+  content   String   @db.Text
+  tone      String?
   
-  content       String
-  tone          String   @default("professional")
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
   
   @@index([userId])
 }
 
 model TailoredResume {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  assessmentId  String   @unique
-  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessmentId String?
+  content   String   @db.Text
   
-  content       String
-  originalResume String
-  optimizations String
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
   
   @@index([userId])
 }
 
-model Resume {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model LinkedInMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  name          String   @default("My Resume")
-  content       String   
-  isDefault     Boolean  @default(false)
+  assessmentId String?
+  content   String   @db.Text
   
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
   
   @@index([userId])
 }
-
-
-
-
-
-
-

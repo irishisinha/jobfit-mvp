@@ -26,13 +26,17 @@ export async function POST(req: NextRequest) {
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Analyze typical candidate profile for this role. Return ONLY JSON.
+        content: `Analyze typical candidate profile. Return ONLY JSON.
 
 JOB TITLE: ${jobTitle}
 USER RESUME: ${userResume.substring(0, 600)}
 
+NOTE: This is an AI ESTIMATE of typical candidates, NOT based on real market research.
+
 RETURN:
 {
+  "dataSource": "ESTIMATED - AI-generated based on typical patterns",
+  "disclaimer": "⚠️ This is an estimate. Real competitive analysis requires market research data.",
   "typicalCandidateProfile": {
     "yearsExperience": {"min": 8, "max": 12, "typical": 10},
     "education": "MBA, Computer Science, or related",
@@ -45,24 +49,12 @@ RETURN:
       "typical": 10,
       "yourLevel": 6,
       "gap": -4,
-      "competitivePosition": "Below average"
-    },
-    {
-      "factor": "MBA/Advanced Degree",
-      "typical": "70% have it",
-      "yourLevel": "No",
-      "gap": "missing",
-      "competitivePosition": "Disadvantage"
+      "competitivePosition": "Below average (ESTIMATE)"
     }
   ],
   "yourPercentile": 35,
-  "percentileAnalysis": "You're in bottom 35% for typical candidate pool",
-  "recommendations": [
-    "Gain 2-3 more years of PM experience",
-    "Consider MBA or online finance course",
-    "Lead higher-impact projects"
-  ],
-  "whenToApply": "After 2 more years of experience OR after completing MBA"
+  "percentileAnalysis": "Estimated position (UNVERIFIED)",
+  "confidenceLevel": "Low - For reference only"
 }
 
 Return only valid JSON.`
@@ -73,9 +65,17 @@ Return only valid JSON.`
     content = content.replace(/```json\n?|\n?```/g, "").trim()
     const competitor = JSON.parse(content)
 
+    competitor.dataSource = "ESTIMATED - AI-GENERATED, NOT REAL MARKET DATA"
+    competitor.disclaimer = "⚠️ This is a rough estimate. For real competitive analysis, research actual postings."
+    competitor.confidenceLevel = "Low - For guidance only"
+
     return NextResponse.json(competitor)
   } catch (error) {
     console.error("Competitor intel error:", error)
-    return NextResponse.json({ error: "Failed to generate competitor intelligence" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to generate competitor intelligence",
+      dataSource: "ESTIMATED",
+      disclaimer: "Estimates only"
+    }, { status: 500 })
   }
 }
