@@ -10,6 +10,7 @@ interface AssessmentResult {
   fitScore: number
   atsMatch: number
   successProbability: number
+  tailorWorth: number
   strengths: string[]
   gaps: string[]
   missingKeywords: string[]
@@ -149,3 +150,4 @@ export default function Assessment() {
     </div>
   )
 }
+

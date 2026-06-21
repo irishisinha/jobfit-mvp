@@ -35,9 +35,9 @@ COMPANY: ${company}
 JOB DESCRIPTION:
 ${jobDescription.substring(0, 1000)}
 
-Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). Use your actual analysis:
+Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). Include tailorWorth (0-100: how much tailoring would help):
 
-{"verdict":"Strong Fit" or "Moderate Fit" or "Weak Fit","fitScore":0-100,"atsMatch":0-100,"successProbability":0-100,"strengths":["actual strength 1","actual strength 2","actual strength 3"],"gaps":["actual gap 1","actual gap 2"],"missingKeywords":["actual keyword 1","actual keyword 2","actual keyword 3"]}`
+{"verdict":"Strong Fit" or "Moderate Fit" or "Weak Fit","fitScore":0-100,"atsMatch":0-100,"successProbability":0-100,"tailorWorth":0-100,"strengths":["actual strength 1","actual strength 2","actual strength 3"],"gaps":["actual gap 1","actual gap 2"],"missingKeywords":["actual keyword 1","actual keyword 2","actual keyword 3"]}`
       }],
     })
 
@@ -46,23 +46,19 @@ Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). U
       throw new Error("No response from Groq")
     }
 
-    // Strip markdown code fences
     content = content.replace(/^```json\n?/, "").replace(/^```\n?/, "").replace(/\n?```$/, "").trim()
 
-    // Extract JSON object if wrapped in text
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       content = jsonMatch[0]
     }
 
-    // Clean common JSON issues
     content = content.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")
     content = content.replace(/[\x00-\x1F\x7F-\x9F]/g, " ")
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: any = JSON.parse(content)
 
-    // Normalize verdict
     const verdictMap: { [key: string]: string } = {
       "strong fit": "Strong Fit",
       "strong": "Strong Fit",
@@ -81,8 +77,8 @@ Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). U
     result.fitScore = Math.min(100, Math.max(0, parseInt(String(result.fitScore)) || 50))
     result.atsMatch = Math.min(100, Math.max(0, parseInt(String(result.atsMatch)) || 50))
     result.successProbability = Math.min(100, Math.max(0, parseInt(String(result.successProbability)) || 50))
+    result.tailorWorth = Math.min(100, Math.max(0, parseInt(String(result.tailorWorth)) || 50))
 
-    // Filter and validate arrays
     result.strengths = (Array.isArray(result.strengths) ? result.strengths : []).filter((s: string) => s && typeof s === "string" && s.length > 3 && !s.match(/^[sg]\d+$/))
     result.gaps = (Array.isArray(result.gaps) ? result.gaps : []).filter((g: string) => g && typeof g === "string" && g.length > 3 && !g.match(/^[g]\d+$/))
     result.missingKeywords = (Array.isArray(result.missingKeywords) ? result.missingKeywords : []).filter((k: string) => k && typeof k === "string" && k.length > 2 && !k.match(/^k\d+$/))
@@ -91,7 +87,6 @@ Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). U
     if (result.gaps.length === 0) result.gaps = ["Domain-specific experience needed"]
     if (result.missingKeywords.length === 0) result.missingKeywords = ["Technical skills", "Industry knowledge"]
 
-    // Save to database (non-blocking)
     try {
       const { prisma } = await import("../../../lib/prisma")
       const user = await prisma.user.findUnique({ where: { email: session.user.email } })
@@ -123,6 +118,7 @@ Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). U
       fitScore: 60,
       atsMatch: 60,
       successProbability: 65,
+      tailorWorth: 65,
       strengths: ["Professional experience", "Education background"],
       gaps: ["Specific technical skills", "Industry experience"],
       missingKeywords: ["Domain tools", "Relevant technologies"]
