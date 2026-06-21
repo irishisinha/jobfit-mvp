@@ -25,11 +25,19 @@ export async function POST(req: NextRequest) {
       max_tokens: 1024,
       messages: [{
         role: "user",
-        content: `Analyze resume vs job. Return ONLY a valid JSON object (no markdown, no extra text):
-{"verdict":"Strong Fit","fitScore":85,"atsMatch":88,"successProbability":90,"strengths":["s1","s2"],"gaps":["g1"],"missingKeywords":["k1"]}
-RESUME: ${resume.substring(0, 800)}
-JOB: ${jobTitle} at ${company}
-DESCRIPTION: ${jobDescription.substring(0, 800)}`
+        content: `You are a recruiter analyzing a resume against a job description.
+
+RESUME:
+${resume.substring(0, 1000)}
+
+JOB TITLE: ${jobTitle}
+COMPANY: ${company}
+JOB DESCRIPTION:
+${jobDescription.substring(0, 1000)}
+
+Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). Use your actual analysis:
+
+{"verdict":"Strong Fit" or "Moderate Fit" or "Weak Fit","fitScore":0-100,"atsMatch":0-100,"successProbability":0-100,"strengths":["actual strength 1","actual strength 2","actual strength 3"],"gaps":["actual gap 1","actual gap 2"],"missingKeywords":["actual keyword 1","actual keyword 2","actual keyword 3"]}`
       }],
     })
 
@@ -48,24 +56,40 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}`
     }
 
     // Clean common JSON issues
-    content = content.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]") // Remove trailing commas
-    content = content.replace(/[\x00-\x1F\x7F-\x9F]/g, " ") // Remove control characters
+    content = content.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")
+    content = content.replace(/[\x00-\x1F\x7F-\x9F]/g, " ")
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: any = JSON.parse(content)
 
-    // Ensure proper types and values
-    result.verdict = String(result.verdict || "Moderate Fit")
+    // Normalize verdict
+    const verdictMap: { [key: string]: string } = {
+      "strong fit": "Strong Fit",
+      "strong": "Strong Fit",
+      "moderate fit": "Moderate Fit",
+      "moderate": "Moderate Fit",
+      "weak fit": "Weak Fit",
+      "weak": "Weak Fit",
+      "good fit": "Strong Fit",
+      "good": "Strong Fit",
+      "poor fit": "Weak Fit",
+      "poor": "Weak Fit",
+    }
+
+    const verdictLower = String(result.verdict || "").toLowerCase()
+    result.verdict = verdictMap[verdictLower] || "Moderate Fit"
     result.fitScore = Math.min(100, Math.max(0, parseInt(String(result.fitScore)) || 50))
     result.atsMatch = Math.min(100, Math.max(0, parseInt(String(result.atsMatch)) || 50))
     result.successProbability = Math.min(100, Math.max(0, parseInt(String(result.successProbability)) || 50))
-    result.strengths = (Array.isArray(result.strengths) ? result.strengths : []).filter((s: string) => s && typeof s === "string" && s !== "N/A")
-    result.gaps = (Array.isArray(result.gaps) ? result.gaps : []).filter((g: string) => g && typeof g === "string" && g !== "N/A")
-    result.missingKeywords = (Array.isArray(result.missingKeywords) ? result.missingKeywords : []).filter((k: string) => k && typeof k === "string" && k !== "N/A")
 
-    if (result.strengths.length === 0) result.strengths = ["Experience aligns with role"]
-    if (result.gaps.length === 0) result.gaps = ["Areas for development"]
-    if (result.missingKeywords.length === 0) result.missingKeywords = ["Industry-specific tools"]
+    // Filter and validate arrays
+    result.strengths = (Array.isArray(result.strengths) ? result.strengths : []).filter((s: string) => s && typeof s === "string" && s.length > 3 && !s.match(/^[sg]\d+$/))
+    result.gaps = (Array.isArray(result.gaps) ? result.gaps : []).filter((g: string) => g && typeof g === "string" && g.length > 3 && !g.match(/^[g]\d+$/))
+    result.missingKeywords = (Array.isArray(result.missingKeywords) ? result.missingKeywords : []).filter((k: string) => k && typeof k === "string" && k.length > 2 && !k.match(/^k\d+$/))
+
+    if (result.strengths.length === 0) result.strengths = ["Professional background", "Relevant experience"]
+    if (result.gaps.length === 0) result.gaps = ["Domain-specific experience needed"]
+    if (result.missingKeywords.length === 0) result.missingKeywords = ["Technical skills", "Industry knowledge"]
 
     // Save to database (non-blocking)
     try {
@@ -96,12 +120,12 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}`
     console.error("Assessment error:", error)
     return NextResponse.json({
       verdict: "Moderate Fit",
-      fitScore: 50,
-      atsMatch: 50,
-      successProbability: 50,
-      strengths: ["Professional experience"],
-      gaps: ["Specific skill requirements"],
-      missingKeywords: ["Technical skills"]
+      fitScore: 60,
+      atsMatch: 60,
+      successProbability: 65,
+      strengths: ["Professional experience", "Education background"],
+      gaps: ["Specific technical skills", "Industry experience"],
+      missingKeywords: ["Domain tools", "Relevant technologies"]
     })
   }
 }
