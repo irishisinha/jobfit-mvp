@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./prisma/dev.db"
 }
 
 model User {
@@ -97,6 +97,10 @@ model Resume {
   
   @@index([userId])
 }
+
+
+
+
 
 
 
