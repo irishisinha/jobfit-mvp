@@ -38,10 +38,13 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
       return NextResponse.json({ error: "No response from Groq" }, { status: 500 })
     }
 
-    // Strip markdown code fences if present
     content = content.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim()
+    let result = JSON.parse(content)
 
-    const result = JSON.parse(content)
+    // Ensure arrays exist
+    result.strengths = Array.isArray(result.strengths) ? result.strengths : ["N/A"]
+    result.gaps = Array.isArray(result.gaps) ? result.gaps : ["N/A"]
+    result.missingKeywords = Array.isArray(result.missingKeywords) ? result.missingKeywords : ["N/A"]
 
     // Save to database (non-blocking)
     try {
@@ -59,9 +62,9 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
             fitScore: result.fitScore,
             atsMatch: result.atsMatch,
             successProbability: result.successProbability,
-            strengths: result.strengths.join("|"),
-            gaps: result.gaps.join("|"),
-            missingKeywords: result.missingKeywords.join("|"),
+            strengths: (result.strengths || []).join("|"),
+            gaps: (result.gaps || []).join("|"),
+            missingKeywords: (result.missingKeywords || []).join("|"),
           },
         }).catch(() => {})
       }

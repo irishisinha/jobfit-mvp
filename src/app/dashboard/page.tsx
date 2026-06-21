@@ -119,7 +119,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filtered.map(a => (
+            {(filtered || []).map(a => (
               <div key={a.id} className="bg-white rounded-lg p-6 shadow hover:shadow-lg transition">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -159,3 +159,4 @@ export default function Dashboard() {
     </div>
   )
 }
+
