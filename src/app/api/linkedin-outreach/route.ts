@@ -3,117 +3,63 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-})
-
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    let body
-    try {
-      body = await req.json()
-    } catch (e) {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
-    }
-
-    const {
-      resume,
-      jobDescription,
-      jobTitle,
-      company,
-      recipientName,
-      recipientRole,
-      strengths = [],
-    } = body
+    const { resume, jobDescription, jobTitle, company, recipientName, recipientRole } = await req.json()
 
     if (!resume?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: "Server error: GROQ_API_KEY not set" }, { status: 500 })
-    }
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    })
 
-    const prompt = `You are an expert LinkedIn outreach specialist writing a personalized connection message.
+    const prompt = `Write a SHORT, personalized LinkedIn connection message (150-200 words max).
 
-GOAL: Get a response and potentially an interview opportunity.
+RESUME:
+${resume.substring(0, 1000)}
 
-RULES:
-1. Personal and specific - reference the company/role/person explicitly
-2. Keep it SHORT - LinkedIn messages should be 150-200 words max
-3. Show genuine interest - NOT generic
-4. Mention a specific reason you're interested (from JD or company)
-5. Highlight ONE relevant achievement from the candidate's resume
-6. Include a soft call-to-action (ask for advice, time to chat, etc.)
-7. Professional but conversational tone
-
-CANDIDATE PROFILE:
-Resume: ${resume}
-
-TARGET COMPANY & ROLE:
-Company: ${company || "Company"}
-Position: ${jobTitle || "Position"}
+TARGET JOB: ${jobTitle} at ${company}
 
 JOB DESCRIPTION:
-${jobDescription}
+${jobDescription.substring(0, 800)}
 
-RECIPIENT (who you're messaging):
-Name: ${recipientName || "Hiring Manager/Recruiter"}
-Role: ${recipientRole || "Not specified"}
+RECIPIENT: ${recipientName || "Hiring Manager"} (${recipientRole || "Not specified"})
 
-KEY STRENGTHS TO POTENTIALLY REFERENCE:
-${strengths.length > 0 ? strengths.slice(0, 2).join(", ") : "General experience"}
-
-Write a personalized LinkedIn connection/outreach message that:
-1. Opens with a genuine compliment or specific reason for connecting
-2. References the company or specific role/initiative
-3. Briefly highlights ONE relevant achievement from the candidate
-4. Shows genuine interest in the role/company
-5. Ends with a soft ask (informational chat, advice, opportunity to learn more)
-6. Keep it SHORT and conversational
-7. NO buzzwords or corporate jargon
+Write a message that:
+1. Opens with specific reason for connecting (reference company or role)
+2. Briefly mentions ONE relevant achievement from resume
+3. Shows genuine interest in THIS specific opportunity
+4. Ends with soft call-to-action (chat, advice, learn more)
+5. Keep it SHORT and conversational
+6. NO corporate jargon or buzzwords
 
 Return ONLY the message text, ready to paste into LinkedIn.`
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       max_tokens: 512,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
     })
 
     const content = completion.choices[0]?.message?.content
-
     if (!content) {
-      return NextResponse.json({ error: "Groq returned empty response" }, { status: 500 })
+      return NextResponse.json({ error: "Empty response from Groq" }, { status: 500 })
     }
 
-    return NextResponse.json({
-      content,
-      recipient: recipientName || "Hiring Manager",
-    })
+    return NextResponse.json({ content })
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    const errorName = error instanceof Error ? error.name : "Unknown"
-    
-    return NextResponse.json(
-      {
-        error: "Failed to generate LinkedIn message",
-        type: errorName,
-        message: errorMsg,
-      },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      error: "Failed to generate LinkedIn message",
+      message: error instanceof Error ? error.message : String(error),
+    }, { status: 500 })
   }
 }
