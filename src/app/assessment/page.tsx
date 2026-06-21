@@ -236,6 +236,8 @@ export default function Assessment() {
           <h1 className="text-3xl font-bold">JobFit Assessment</h1>
           <div className="flex gap-3">
             <Link href="/resumes" className="btn-secondary">My Resumes ({savedResumes.length})</Link>
+            <Link href="/insights" className="btn-secondary">Insights</Link>
+            <Link href="/linkedin-optimizer" className="btn-secondary">LinkedIn</Link>
             <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
             <button onClick={() => signOut()} className="btn-secondary">Sign Out</button>
           </div>

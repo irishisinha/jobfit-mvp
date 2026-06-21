@@ -11,6 +11,7 @@ export default function InsightsPage() {
           <h1 className="text-3xl font-bold">Career Insights</h1>
           <div className="flex gap-3">
             <Link href="/assessment" className="btn-secondary">Assessment</Link>
+            <Link href="/linkedin-optimizer" className="btn-secondary">LinkedIn</Link>
             <button onClick={() => signOut()} className="btn-secondary">Sign Out</button>
           </div>
         </div>
