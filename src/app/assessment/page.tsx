@@ -205,17 +205,17 @@ export default function Assessment() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-green-600 mb-3">Strengths</h3>
-                  <ul className="space-y-2">{result.strengths?.filter(s => s && s !== "N/A").map((s, i) => <li key={i} className="flex items-start"><span className="text-green-600 mr-2">?</span><span>{s}</span></li>)}</ul>
+                  <ul className="space-y-2">{(result?.strengths || [])?.filter(s => s && s !== "N/A").map((s, i) => <li key={i} className="flex items-start"><span className="text-green-600 mr-2">?</span><span>{s}</span></li>)}</ul>
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-red-600 mb-3">Gaps</h3>
-                  <ul className="space-y-2">{result.gaps?.filter(g => g && g !== "N/A").map((g, i) => <li key={i} className="flex items-start"><span className="text-red-600 mr-2">!</span><span>{g}</span></li>)}</ul>
+                  <ul className="space-y-2">{(result?.gaps || [])?.filter(g => g && g !== "N/A").map((g, i) => <li key={i} className="flex items-start"><span className="text-red-600 mr-2">?</span><span>{g}</span></li>)}</ul>
                 </div>
               </div>
 
               <div>
                 <h3 className="text-lg font-bold text-yellow-600 mb-3">Missing Keywords</h3>
-                <div className="flex flex-wrap gap-2">{result.missingKeywords?.filter(k => k && k !== "N/A").map((k, i) => <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{k}</span>)}</div>
+                <div className="flex flex-wrap gap-2">{(result?.missingKeywords || [])?.filter(k => k && k !== "N/A").map((k, i) => <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{k}</span>)}</div>
               </div>
             </div>
 
@@ -270,3 +270,4 @@ export default function Assessment() {
     </div>
   )
 }
+

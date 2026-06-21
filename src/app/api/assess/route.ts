@@ -22,71 +22,64 @@ export async function POST(req: NextRequest) {
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 1024,
+      max_tokens: 1500,
       messages: [{
         role: "user",
-        content: `You are a recruiter analyzing a resume against a job description.
+        content: `You are an expert recruiter. Analyze this resume against the job description and respond with ONLY a JSON object (no markdown, no text before or after).
 
 RESUME:
-${resume.substring(0, 1000)}
+${resume.substring(0, 800)}
 
-JOB TITLE: ${jobTitle}
-COMPANY: ${company}
-JOB DESCRIPTION:
-${jobDescription.substring(0, 1000)}
+JOB: ${jobTitle || "Position"} at ${company || "Company"}
+DESCRIPTION:
+${jobDescription.substring(0, 800)}
 
-Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). Include tailorWorth (0-100: how much tailoring would help):
-
-{"verdict":"Strong Fit" or "Moderate Fit" or "Weak Fit","fitScore":0-100,"atsMatch":0-100,"successProbability":0-100,"tailorWorth":0-100,"strengths":["actual strength 1","actual strength 2","actual strength 3"],"gaps":["actual gap 1","actual gap 2"],"missingKeywords":["actual keyword 1","actual keyword 2","actual keyword 3"]}`
+Return valid JSON with these EXACT fields:
+{
+  "verdict": "Strong Fit" or "Moderate Fit" or "Weak Fit",
+  "fitScore": number 0-100,
+  "atsMatch": number 0-100,
+  "successProbability": number 0-100,
+  "tailorWorth": number 0-100,
+  "strengths": ["real strength 1", "real strength 2", "real strength 3"],
+  "gaps": ["real gap 1", "real gap 2"],
+  "missingKeywords": ["keyword 1", "keyword 2", "keyword 3"]
+}`
       }],
     })
 
     let content = completion.choices[0]?.message?.content || ""
-    if (!content) {
-      throw new Error("No response from Groq")
-    }
-
-    content = content.replace(/^```json\n?/, "").replace(/^```\n?/, "").replace(/\n?```$/, "").trim()
-
+    
+    // Strip markdown
+    content = content.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim()
+    content = content.replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim()
+    
+    // Extract JSON
     const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      content = jsonMatch[0]
+    if (!jsonMatch) {
+      throw new Error(`No JSON found in response: ${content.substring(0, 100)}`)
     }
 
-    content = content.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")
-    content = content.replace(/[\x00-\x1F\x7F-\x9F]/g, " ")
+    let result = JSON.parse(jsonMatch[0])
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let result: any = JSON.parse(content)
-
-    const verdictMap: { [key: string]: string } = {
-      "strong fit": "Strong Fit",
-      "strong": "Strong Fit",
-      "moderate fit": "Moderate Fit",
-      "moderate": "Moderate Fit",
-      "weak fit": "Weak Fit",
-      "weak": "Weak Fit",
-      "good fit": "Strong Fit",
-      "good": "Strong Fit",
-      "poor fit": "Weak Fit",
-      "poor": "Weak Fit",
+    // Ensure all required fields exist
+    result = {
+      verdict: normalizeVerdict(result.verdict) || "Moderate Fit",
+      fitScore: ensureNumber(result.fitScore, 50),
+      atsMatch: ensureNumber(result.atsMatch, 50),
+      successProbability: ensureNumber(result.successProbability, 50),
+      tailorWorth: ensureNumber(result.tailorWorth, 50),
+      strengths: ensureArray(result.strengths),
+      gaps: ensureArray(result.gaps),
+      missingKeywords: ensureArray(result.missingKeywords),
     }
 
-    const verdictLower = String(result.verdict || "").toLowerCase()
-    result.verdict = verdictMap[verdictLower] || "Moderate Fit"
-    result.fitScore = Math.min(100, Math.max(0, parseInt(String(result.fitScore)) || 50))
-    result.atsMatch = Math.min(100, Math.max(0, parseInt(String(result.atsMatch)) || 50))
-    result.successProbability = Math.min(100, Math.max(0, parseInt(String(result.successProbability)) || 50))
-    result.tailorWorth = Math.min(100, Math.max(0, parseInt(String(result.tailorWorth)) || 50))
+    // Validate arrays
+    if (result.strengths.length === 0) result.strengths = ["Relevant experience", "Professional background"]
+    if (result.gaps.length === 0) result.gaps = ["Specific domain knowledge"]
+    if (result.missingKeywords.length === 0) result.missingKeywords = ["Technical skills"]
 
-    result.strengths = (Array.isArray(result.strengths) ? result.strengths : []).filter((s: string) => s && typeof s === "string" && s.length > 3 && !s.match(/^[sg]\d+$/))
-    result.gaps = (Array.isArray(result.gaps) ? result.gaps : []).filter((g: string) => g && typeof g === "string" && g.length > 3 && !g.match(/^[g]\d+$/))
-    result.missingKeywords = (Array.isArray(result.missingKeywords) ? result.missingKeywords : []).filter((k: string) => k && typeof k === "string" && k.length > 2 && !k.match(/^k\d+$/))
-
-    if (result.strengths.length === 0) result.strengths = ["Professional background", "Relevant experience"]
-    if (result.gaps.length === 0) result.gaps = ["Domain-specific experience needed"]
-    if (result.missingKeywords.length === 0) result.missingKeywords = ["Technical skills", "Industry knowledge"]
-
+    // Save to database (non-blocking)
     try {
       const { prisma } = await import("../../../lib/prisma")
       const user = await prisma.user.findUnique({ where: { email: session.user.email } })
@@ -113,6 +106,7 @@ Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). I
     return NextResponse.json(result)
   } catch (error) {
     console.error("Assessment error:", error)
+    // Return sensible defaults instead of failing
     return NextResponse.json({
       verdict: "Moderate Fit",
       fitScore: 60,
@@ -121,7 +115,34 @@ Analyze the fit and respond with ONLY valid JSON (no markdown, no extra text). I
       tailorWorth: 65,
       strengths: ["Professional experience", "Education background"],
       gaps: ["Specific technical skills", "Industry experience"],
-      missingKeywords: ["Domain tools", "Relevant technologies"]
+      missingKeywords: ["Domain tools", "Relevant frameworks"]
     })
   }
+}
+
+function normalizeVerdict(v: string): string {
+  const map: { [key: string]: string } = {
+    "strong fit": "Strong Fit",
+    "strong": "Strong Fit",
+    "moderate fit": "Moderate Fit",
+    "moderate": "Moderate Fit",
+    "weak fit": "Weak Fit",
+    "weak": "Weak Fit",
+    "good fit": "Strong Fit",
+    "good": "Strong Fit",
+    "poor fit": "Weak Fit",
+  }
+  return map[String(v).toLowerCase()] || "Moderate Fit"
+}
+
+function ensureNumber(val: unknown, fallback: number): number {
+  const n = parseInt(String(val))
+  return isNaN(n) ? fallback : Math.min(100, Math.max(0, n))
+}
+
+function ensureArray(val: unknown): string[] {
+  if (!Array.isArray(val)) return []
+  return val
+    .map(v => String(v).trim())
+    .filter(v => v && v.length > 2 && v !== "N/A")
 }
