@@ -78,34 +78,36 @@ export default function Assessment() {
     setStep("results")
 
     try {
-      // Score all saved resumes against this job (in parallel)
-      const scored = await Promise.all(
-        savedResumes.map(async (resume) => {
-          try {
-            const res = await fetch("/api/suggest-resume", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ jobDescription, jobTitle, company }),
-            })
-            const data = await res.json()
-            const suggestions = data.suggestions || []
-            const match = suggestions.find((s: any) => s.id === resume.id)
-            return { ...resume, matchScore: match?.score || 50 }
-          } catch (err) {
-            return { ...resume, matchScore: 50 }
-          }
-        })
-      )
+      // Score ALL resumes in ONE call for consistency
+      const res = await fetch("/api/suggest-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          jobDescription, 
+          jobTitle, 
+          company,
+          resumes: savedResumes 
+        }),
+      })
 
-      // Sort by match score
+      const data = await res.json()
+      const suggestions = data.suggestions || []
+
+      // Map scores back to resumes
+      const scored = savedResumes.map(resume => {
+        const match = suggestions.find((s: any) => s.id === resume.id)
+        return { ...resume, matchScore: match?.score || 50 }
+      })
+
+      // Sort by score
       const sorted = scored.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
       setAllResumes(sorted)
 
-      // Auto-select the top resume
+      // Auto-select top resume
       const topResume = sorted[0]
       setSelectedResume(topResume)
 
-      // Run assessment on top resume
+      // Run full assessment on top resume
       const assessRes = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -313,9 +315,10 @@ export default function Assessment() {
                   <p className="text-gray-600 text-sm mb-1">Success Rate</p>
                   <p className="text-2xl font-bold text-purple-600">{result.successProbability}%</p>
                 </div>
-                <div className="bg-orange-50 rounded-lg p-4">
+                <div className={`rounded-lg p-4 ${result.tailorWorth < 30 ? "bg-green-50" : "bg-orange-50"}`}>
                   <p className="text-gray-600 text-sm mb-1">Tailor Worth</p>
-                  <p className="text-2xl font-bold text-orange-600">{result.tailorWorth}%</p>
+                  <p className={`text-2xl font-bold ${result.tailorWorth < 30 ? "text-green-600" : "text-orange-600"}`}>{result.tailorWorth}%</p>
+                  <p className="text-xs text-gray-600">{result.tailorWorth < 30 ? "Already optimal" : "Room to improve"}</p>
                 </div>
               </div>
 
@@ -373,8 +376,8 @@ export default function Assessment() {
                 {tailoredResume ? (
                   <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
-                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 30} className={`w-full ${result.tailorWorth < 30 ? "opacity-50 cursor-not-allowed" : ""} btn-primary`}>
-                    {result.tailorWorth < 30 ? "Already Optimized" : "Generate"}
+                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 20} className={`w-full ${result.tailorWorth < 20 ? "opacity-50 cursor-not-allowed" : ""} btn-primary`}>
+                    {result.tailorWorth < 20 ? "Already Optimized" : "Generate"}
                   </button>
                 )}
               </div>

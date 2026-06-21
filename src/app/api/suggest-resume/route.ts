@@ -19,65 +19,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Job description required" }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    })
+    // Get user's resumes from localStorage (passed from frontend)
+    const { resumes } = await req.json()
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
-    const resumes = await prisma.resume.findMany({
-      where: { userId: user.id },
-      select: { id: true, name: true, content: true },
-    })
-
-    if (resumes.length === 0) {
+    if (!resumes || resumes.length === 0) {
       return NextResponse.json({ suggestions: [] })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
+    // Score all resumes in parallel
     const suggestions = await Promise.all(
-      resumes.map(async (resume) => {
+      resumes.map(async (resume: any) => {
         try {
           const completion = await groq.chat.completions.create({
             model: "llama-3.1-8b-instant",
-            max_tokens: 150,
+            max_tokens: 200,
+            temperature: 0,
             messages: [{
               role: "user",
-              content: `Rate resume match for job (0-100).
+              content: `Rate resume match to job. Return ONLY: {"score": 0-100, "reason": "brief reason"}
 
 RESUME: ${resume.content.substring(0, 400)}
-
 JOB: ${jobTitle} at ${company}
-${jobDescription.substring(0, 300)}
+REQUIREMENTS: ${jobDescription.substring(0, 400)}
 
-Return: SCORE: [0-100] - reason`
+Return valid JSON only.`
             }],
           })
 
-          const response = completion.choices[0]?.message?.content || "SCORE: 50"
-          const scoreMatch = response.match(/(\d+)/)
-          const score = scoreMatch ? parseInt(scoreMatch[1]) : 50
+          const content = (completion.choices[0]?.message?.content || "{}").replace(/```json\n?|\n?```/g, "").trim()
+          const data = JSON.parse(content)
+          const score = Math.min(100, Math.max(0, data.score || 50))
 
           return {
             id: resume.id,
             name: resume.name,
-            score: Math.min(100, Math.max(0, score)),
-            reason: response.replace(/SCORE:\s*\d+\s*-?\s*/, "").trim().substring(0, 100),
+            score,
+            reason: data.reason || "Analyzed"
           }
         } catch (err) {
-          return { id: resume.id, name: resume.name, score: 50, reason: "Unable to score" }
+          return { id: resume.id, name: resume.name, score: 50, reason: "Error" }
         }
       })
     )
 
-    suggestions.sort((a, b) => b.score - a.score)
+    // Sort by score descending
+    const sorted = suggestions.sort((a, b) => b.score - a.score)
 
-    return NextResponse.json({ suggestions })
+    return NextResponse.json({ suggestions: sorted })
   } catch (error) {
-    console.error("Resume suggestion error:", error)
+    console.error("Suggest resume error:", error)
     return NextResponse.json({ suggestions: [] })
   }
 }
