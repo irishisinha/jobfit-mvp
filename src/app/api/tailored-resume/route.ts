@@ -53,7 +53,7 @@ START THE REWRITTEN RESUME NOW:`
       return NextResponse.json({ error: "No response from Groq" }, { status: 500 })
     }
 
-    return NextResponse.json({ content })
+    return NextResponse.json({ tailoredResume: content })
   } catch (error) {
     return NextResponse.json({
       error: "Failed",

@@ -16,6 +16,13 @@ interface AssessmentResult {
   missingKeywords: string[]
 }
 
+const getTailorRecommendation = (score: number): { text: string; color: string } => {
+  if (score >= 80) return { text: "Strongly recommend tailoring - could significantly improve fit", color: "text-orange-700" }
+  if (score >= 60) return { text: "Tailoring may help - worth trying to highlight matching skills", color: "text-yellow-700" }
+  if (score >= 40) return { text: "Minimal benefit from tailoring - already well-positioned", color: "text-blue-700" }
+  return { text: "Skip tailoring - you already match well, focus on applying", color: "text-gray-600" }
+}
+
 export default function Assessment() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -270,4 +277,5 @@ export default function Assessment() {
     </div>
   )
 }
+
 
