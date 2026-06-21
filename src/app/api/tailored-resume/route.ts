@@ -22,32 +22,17 @@ export async function POST(req: NextRequest) {
       apiKey: process.env.GROQ_API_KEY,
     })
 
-    const prompt = `Optimize this resume for a specific job. ONLY reorganize existing experience - NEVER add false skills.
+    const prompt = `Optimize resume for: ${jobTitle} at ${company}
 
-RESUME:
-${resume.substring(0, 2000)}
+Resume: ${resume}
 
-TARGET JOB: ${jobTitle} at ${company}
+Job Description: ${jobDescription}
 
-JOB DESCRIPTION:
-${jobDescription.substring(0, 1000)}
-
-ACTUAL CANDIDATE STRENGTHS:
-${strengths.slice(0, 2).join(", ")}
-
-INSTRUCTIONS:
-1. Reorganize bullets to highlight relevant achievements
-2. Use stronger action verbs for REAL accomplishments
-3. ONLY add keywords that legitimately match actual experience
-4. Skip keywords that don't fit - don't force them
-5. Maintain all original facts - NOTHING FABRICATED
-6. Keep same format
-
-Return the optimized resume only, no explanations.`
+Rules: Reorganize to highlight achievements. Use stronger verbs. Only add keywords that legitimately fit. Keep same format. Return complete optimized resume.`
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 2048,
+      max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],
     })
 
