@@ -26,6 +26,12 @@ export default function Assessment() {
   const [result, setResult] = useState<AssessmentResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [coverLetter, setCoverLetter] = useState("")
+  const [tailoredResume, setTailoredResume] = useState("")
+  const [linkedInMessage, setLinkedInMessage] = useState("")
+  const [generatingCL, setGeneratingCL] = useState(false)
+  const [generatingTR, setGeneratingTR] = useState(false)
+  const [generatingLI, setGeneratingLI] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -55,6 +61,72 @@ export default function Assessment() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleGenerateCoverLetter = async () => {
+    if (!result) return
+    setGeneratingCL(true)
+    try {
+      const res = await fetch("/api/cover-letters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume, jobDescription, jobTitle, company, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords }),
+      })
+      const data = await res.json()
+      setCoverLetter(data.coverLetter || "Failed to generate")
+    } catch (err) {
+      setCoverLetter("Failed to generate cover letter")
+    } finally {
+      setGeneratingCL(false)
+    }
+  }
+
+  const handleGenerateTailoredResume = async () => {
+    if (!result) return
+    setGeneratingTR(true)
+    try {
+      const res = await fetch("/api/tailored-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume, jobDescription, jobTitle, company }),
+      })
+      const data = await res.json()
+      setTailoredResume(data.tailoredResume || "Failed to generate")
+    } catch (err) {
+      setTailoredResume("Failed to generate tailored resume")
+    } finally {
+      setGeneratingTR(false)
+    }
+  }
+
+  const handleGenerateLinkedIn = async () => {
+    if (!result) return
+    setGeneratingLI(true)
+    try {
+      const res = await fetch("/api/linkedin-outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resume, jobDescription, jobTitle, company }),
+      })
+      const data = await res.json()
+      setLinkedInMessage(data.message || "Failed to generate")
+    } catch (err) {
+      setLinkedInMessage("Failed to generate LinkedIn message")
+    } finally {
+      setGeneratingLI(false)
+    }
+  }
+
+  const downloadAsText = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   if (status === "loading") return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -107,7 +179,7 @@ export default function Assessment() {
             <div className="bg-white rounded-lg p-8 shadow">
               <h2 className="text-3xl font-bold mb-6">Assessment Results</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <p className="text-gray-600 text-sm mb-1">Verdict</p>
                   <p className={`text-lg font-bold ${result.verdict === "Strong Fit" ? "text-green-600" : result.verdict === "Moderate Fit" ? "text-yellow-600" : "text-red-600"}`}>{result.verdict}</p>
@@ -121,8 +193,12 @@ export default function Assessment() {
                   <p className="text-2xl font-bold text-indigo-600">{result.atsMatch}%</p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-gray-600 text-sm mb-1">Success Probability</p>
+                  <p className="text-gray-600 text-sm mb-1">Success</p>
                   <p className="text-2xl font-bold text-purple-600">{result.successProbability}%</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-gray-600 text-sm mb-1">Tailor Worth</p>
+                  <p className={`text-2xl font-bold ${result.tailorWorth >= 70 ? "text-orange-600" : result.tailorWorth >= 40 ? "text-yellow-600" : "text-gray-600"}`}>{result.tailorWorth}%</p>
                 </div>
               </div>
 
@@ -143,11 +219,54 @@ export default function Assessment() {
               </div>
             </div>
 
-            <button onClick={() => setResult(null)} className="btn-secondary">New Assessment</button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-white rounded-lg p-6 shadow">
+                <h3 className="text-lg font-bold text-blue-600 mb-4">?? Cover Letter</h3>
+                {coverLetter ? (
+                  <>
+                    <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
+                    <button onClick={() => downloadAsText(coverLetter, "cover_letter.txt")} className="btn-primary w-full">Download</button>
+                  </>
+                ) : (
+                  <button onClick={handleGenerateCoverLetter} disabled={generatingCL} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingCL ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
+                    {generatingCL ? "Generating..." : "Generate Cover Letter"}
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white rounded-lg p-6 shadow">
+                <h3 className="text-lg font-bold text-green-600 mb-4">?? Tailored Resume</h3>
+                {tailoredResume ? (
+                  <>
+                    <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
+                    <button onClick={() => downloadAsText(tailoredResume, "tailored_resume.txt")} className="btn-primary w-full">Download</button>
+                  </>
+                ) : (
+                  <button onClick={handleGenerateTailoredResume} disabled={generatingTR || result.tailorWorth < 30} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingTR || result.tailorWorth < 30 ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}>
+                    {generatingTR ? "Generating..." : result.tailorWorth < 30 ? "Not Needed (Already Good Fit)" : "Generate Tailored Resume"}
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white rounded-lg p-6 shadow">
+                <h3 className="text-lg font-bold text-purple-600 mb-4">?? LinkedIn Outreach</h3>
+                {linkedInMessage ? (
+                  <>
+                    <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
+                    <button onClick={() => downloadAsText(linkedInMessage, "linkedin_message.txt")} className="btn-primary w-full">Download</button>
+                  </>
+                ) : (
+                  <button onClick={handleGenerateLinkedIn} disabled={generatingLI} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingLI ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"}`}>
+                    {generatingLI ? "Generating..." : "Generate LinkedIn Message"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <button onClick={() => setResult(null)} className="btn-secondary w-full">New Assessment</button>
           </div>
         )}
       </div>
     </div>
   )
 }
-
