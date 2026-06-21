@@ -35,36 +35,36 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
     })
 
     const content = completion.choices[0]?.message?.content
-
     if (!content) {
       return NextResponse.json({ error: "No response from Groq" }, { status: 500 })
     }
 
     const result = JSON.parse(content)
 
-    // Save to database
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    })
-
-    if (user) {
-      await prisma.assessment.create({
-        data: {
-          userId: user.id,
-          resume,
-          jobDescription,
-          jobTitle: jobTitle || "Untitled",
-          company: company || "Unknown",
-          verdict: result.verdict,
-          fitScore: result.fitScore,
-          atsMatch: result.atsMatch,
-          successProbability: result.successProbability,
-          strengths: result.strengths.join("|"),
-          gaps: result.gaps.join("|"),
-          missingKeywords: result.missingKeywords.join("|"),
-        },
+    // Save to database (non-blocking - fire and forget)
+    try {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
       })
-    }
+      if (user) {
+        prisma.assessment.create({
+          data: {
+            userId: user.id,
+            resume,
+            jobDescription,
+            jobTitle: jobTitle || "Untitled",
+            company: company || "Unknown",
+            verdict: result.verdict,
+            fitScore: result.fitScore,
+            atsMatch: result.atsMatch,
+            successProbability: result.successProbability,
+            strengths: result.strengths.join("|"),
+            gaps: result.gaps.join("|"),
+            missingKeywords: result.missingKeywords.join("|"),
+          },
+        }).catch(() => {}) // Ignore db errors
+      }
+    } catch {}
 
     return NextResponse.json(result)
   } catch (error) {
