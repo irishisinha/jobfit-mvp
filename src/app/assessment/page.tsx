@@ -260,7 +260,7 @@ export default function Assessment() {
                 <h3 className="text-lg font-bold text-blue-600 mb-4">?? Cover Letter</h3>
                 {coverLetter ? (
                   <>
-                    <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
+                    <textarea value={coverLetter} readOnly className="w-full h-96 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-xs font-mono bg-gray-50 whitespace-pre-wrap" />
                     <div className="flex gap-2">
                       <button onClick={() => downloadText(coverLetter, "cover_letter.txt")} className="flex-1 btn-secondary text-sm">?? TXT</button>
                       <button onClick={() => downloadDocx(coverLetter, "cover_letter.docx")} className="flex-1 btn-primary text-sm">?? DOCX</button>
@@ -288,7 +288,7 @@ export default function Assessment() {
                 <h3 className="text-lg font-bold text-green-600 mb-4">?? Tailored Resume</h3>
                 {tailoredResume ? (
                   <>
-                    <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
+                    <textarea value={tailoredResume} readOnly className="w-full h-96 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-xs font-mono bg-gray-50 whitespace-pre-wrap" />
                     <div className="flex gap-2">
                       <button onClick={() => downloadText(tailoredResume, "tailored_resume.txt")} className="flex-1 btn-secondary text-sm">?? TXT</button>
                       <button onClick={() => downloadDocx(tailoredResume, "tailored_resume.docx")} className="flex-1 btn-primary text-sm">?? DOCX</button>
@@ -305,7 +305,7 @@ export default function Assessment() {
                 <h3 className="text-lg font-bold text-purple-600 mb-4">?? LinkedIn Outreach</h3>
                 {linkedInMessage ? (
                   <>
-                    <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
+                    <textarea value={linkedInMessage} readOnly className="w-full h-96 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-xs font-mono bg-gray-50 whitespace-pre-wrap" />
                     <button onClick={() => downloadText(linkedInMessage, "linkedin_message.txt")} className="w-full btn-primary">?? Download</button>
                   </>
                 ) : (

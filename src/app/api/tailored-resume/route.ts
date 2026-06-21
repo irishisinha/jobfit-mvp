@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
@@ -22,34 +22,35 @@ export async function POST(req: NextRequest) {
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 2000,
+      max_tokens: 2500,
       messages: [{
         role: "user",
-        content: `Rewrite resume optimized for job. Keep ALL information truthful.
+        content: `Rewrite this resume to optimize for the job. Keep ALL information truthful.
 
 ORIGINAL RESUME:
 ${resume.substring(0, 1200)}
 
-JOB: ${jobTitle} at ${company}
+TARGET JOB: ${jobTitle} at ${company}
 
 REQUIREMENTS:
 ${jobDescription.substring(0, 800)}
 
-INSTRUCTIONS:
-- Reorganize to highlight matching skills
-- Keep all existing information (NO LIES)
-- Use stronger action verbs
-- Reorder by job relevance
-- Return COMPLETE resume
+REWRITE INSTRUCTIONS:
+1. Keep every fact from the original (NO LIES)
+2. Reorganize to highlight matching skills FIRST
+3. Use stronger action verbs
+4. Reorder bullets by job relevance
+5. Keep same structure and format
+6. Return COMPLETE rewritten resume
 
 START REWRITTEN RESUME:`
       }],
     })
 
-    const content = completion.choices[0]?.message?.content
+    let content = completion.choices[0]?.message?.content || ""
 
     if (!content || content.length < 50) {
-      return NextResponse.json({ tailoredResume: resume })
+      content = resume
     }
 
     return NextResponse.json({ tailoredResume: content })
