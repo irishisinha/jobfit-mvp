@@ -25,7 +25,25 @@ export async function POST(req: NextRequest) {
       max_tokens: 3000,
       messages: [{
         role: "user",
-        content: `Rewrite this resume to match the job: ${jobTitle} at ${company}. Only reorganize existing experience, no new skills added.\n\nRESUME:\n${resume}\n\nJOB:\n${jobDescription}\n\nReturn the complete rewritten resume.`
+        content: `TASK: Rewrite ONLY the provided resume below. DO NOT create a new resume. DO NOT add false information. Just reorganize and optimize the existing content.
+
+TARGET JOB: ${jobTitle} at ${company}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+PROVIDED RESUME (rewrite this exactly as-is, just reorganized):
+${resume}
+
+INSTRUCTIONS:
+1. Keep every fact from the original resume
+2. Reorganize bullet points to emphasize achievements matching the job
+3. Use stronger action verbs where applicable
+4. Highlight relevant experience
+5. Maintain exact same structure and format
+6. Return the complete rewritten resume - all of it
+
+START THE REWRITTEN RESUME NOW:`
       }],
     })
 
