@@ -18,9 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
     }
 
-    const groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY,
-    })
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
     const prompt = `Write a SHORT, personalized LinkedIn connection message (150-200 words max).
 
@@ -55,8 +53,9 @@ Return ONLY the message text, ready to paste into LinkedIn.`
       return NextResponse.json({ error: "Empty response from Groq" }, { status: 500 })
     }
 
-    return NextResponse.json({ content })
+    return NextResponse.json({ linkedInMessage: content })
   } catch (error) {
+    console.error("LinkedIn error:", error)
     return NextResponse.json({
       error: "Failed to generate LinkedIn message",
       message: error instanceof Error ? error.message : String(error),

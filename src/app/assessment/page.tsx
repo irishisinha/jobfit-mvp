@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { Document, Packer, Paragraph, HeadingLevel } from "docx"
 
 interface AssessmentResult {
   verdict: string
@@ -16,11 +17,49 @@ interface AssessmentResult {
   missingKeywords: string[]
 }
 
-const getTailorRecommendation = (score: number): { text: string; color: string } => {
-  if (score >= 80) return { text: "Strongly recommend tailoring - could significantly improve fit", color: "text-orange-700" }
-  if (score >= 60) return { text: "Tailoring may help - worth trying to highlight matching skills", color: "text-yellow-700" }
-  if (score >= 40) return { text: "Minimal benefit from tailoring - already well-positioned", color: "text-blue-700" }
-  return { text: "Skip tailoring - you already match well, focus on applying", color: "text-gray-600" }
+const getTailorRecommendation = (score: number) => {
+  if (score >= 80) return "Strongly recommend tailoring - could significantly improve fit"
+  if (score >= 60) return "Tailoring may help - worth trying to highlight matching skills"
+  if (score >= 40) return "Minimal benefit from tailoring - already well-positioned"
+  return "Skip tailoring - you already match well, focus on applying"
+}
+
+const downloadDocx = async (content: string, filename: string) => {
+  try {
+    const doc = new Document({
+      sections: [{
+        children: [
+          new Paragraph({ text: filename.replace(/_/g, " ").replace(".docx", ""), heading: HeadingLevel.HEADING_1 }),
+          new Paragraph({ text: "" }),
+          ...content.split("\n").map(line => new Paragraph({ text: line || "" }))
+        ]
+      }]
+    })
+    const blob = await Packer.toBlob(doc)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error("DOCX download failed:", err)
+    alert("Failed to download DOCX. Try downloading as text instead.")
+  }
+}
+
+const downloadText = (content: string, filename: string) => {
+  const blob = new Blob([content], { type: "text/plain" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 export default function Assessment() {
@@ -39,6 +78,7 @@ export default function Assessment() {
   const [generatingCL, setGeneratingCL] = useState(false)
   const [generatingTR, setGeneratingTR] = useState(false)
   const [generatingLI, setGeneratingLI] = useState(false)
+  const [clTone, setClTone] = useState("professional")
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -77,7 +117,7 @@ export default function Assessment() {
       const res = await fetch("/api/cover-letters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume, jobDescription, jobTitle, company, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords }),
+        body: JSON.stringify({ resume, jobDescription, jobTitle, company, tone: clTone, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords }),
       })
       const data = await res.json()
       setCoverLetter(data.coverLetter || "Failed to generate")
@@ -116,24 +156,12 @@ export default function Assessment() {
         body: JSON.stringify({ resume, jobDescription, jobTitle, company }),
       })
       const data = await res.json()
-      setLinkedInMessage(data.message || "Failed to generate")
+      setLinkedInMessage(data.linkedInMessage || "Failed to generate")
     } catch (err) {
       setLinkedInMessage("Failed to generate LinkedIn message")
     } finally {
       setGeneratingLI(false)
     }
-  }
-
-  const downloadAsText = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
   if (status === "loading") return <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -145,7 +173,7 @@ export default function Assessment() {
         <div className="container-main py-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">JobFit Assessment</h1>
-            <p className="text-gray-600">Welcome, {session.user?.name}! Paste your resume and job description to get started.</p>
+            <p className="text-gray-600">Welcome, {session.user?.name}! Paste your resume and job description.</p>
           </div>
           <div className="flex gap-3">
             <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
@@ -203,26 +231,27 @@ export default function Assessment() {
                   <p className="text-gray-600 text-sm mb-1">Success</p>
                   <p className="text-2xl font-bold text-purple-600">{result.successProbability}%</p>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-orange-50 rounded-lg p-4 border-2 border-orange-200">
                   <p className="text-gray-600 text-sm mb-1">Tailor Worth</p>
                   <p className={`text-2xl font-bold ${result.tailorWorth >= 70 ? "text-orange-600" : result.tailorWorth >= 40 ? "text-yellow-600" : "text-gray-600"}`}>{result.tailorWorth}%</p>
+                  <p className="text-xs mt-2 text-orange-700 font-semibold">{getTailorRecommendation(result.tailorWorth)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-green-600 mb-3">Strengths</h3>
-                  <ul className="space-y-2">{(result?.strengths || [])?.filter(s => s && s !== "N/A").map((s, i) => <li key={i} className="flex items-start"><span className="text-green-600 mr-2">?</span><span>{s}</span></li>)}</ul>
+                  <ul className="space-y-2">{(result.strengths || []).filter(s => s && s !== "N/A").map((s, i) => <li key={i} className="flex items-start"><span className="text-green-600 mr-2">?</span><span>{s}</span></li>)}</ul>
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-red-600 mb-3">Gaps</h3>
-                  <ul className="space-y-2">{(result?.gaps || [])?.filter(g => g && g !== "N/A").map((g, i) => <li key={i} className="flex items-start"><span className="text-red-600 mr-2">?</span><span>{g}</span></li>)}</ul>
+                  <ul className="space-y-2">{(result.gaps || []).filter(g => g && g !== "N/A").map((g, i) => <li key={i} className="flex items-start"><span className="text-red-600 mr-2">?</span><span>{g}</span></li>)}</ul>
                 </div>
               </div>
 
               <div>
                 <h3 className="text-lg font-bold text-yellow-600 mb-3">Missing Keywords</h3>
-                <div className="flex flex-wrap gap-2">{(result?.missingKeywords || [])?.filter(k => k && k !== "N/A").map((k, i) => <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{k}</span>)}</div>
+                <div className="flex flex-wrap gap-2">{(result.missingKeywords || []).filter(k => k && k !== "N/A").map((k, i) => <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{k}</span>)}</div>
               </div>
             </div>
 
@@ -232,12 +261,26 @@ export default function Assessment() {
                 {coverLetter ? (
                   <>
                     <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
-                    <button onClick={() => downloadAsText(coverLetter, "cover_letter.txt")} className="btn-primary w-full">Download</button>
+                    <div className="flex gap-2">
+                      <button onClick={() => downloadText(coverLetter, "cover_letter.txt")} className="flex-1 btn-secondary text-sm">?? TXT</button>
+                      <button onClick={() => downloadDocx(coverLetter, "cover_letter.docx")} className="flex-1 btn-primary text-sm">?? DOCX</button>
+                    </div>
                   </>
                 ) : (
-                  <button onClick={handleGenerateCoverLetter} disabled={generatingCL} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingCL ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
-                    {generatingCL ? "Generating..." : "Generate Cover Letter"}
-                  </button>
+                  <>
+                    <div className="mb-4">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tone:</label>
+                      <select value={clTone} onChange={(e) => setClTone(e.target.value)} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                        <option value="professional">Professional</option>
+                        <option value="enthusiastic">Enthusiastic</option>
+                        <option value="formal">Formal</option>
+                        <option value="casual">Casual</option>
+                      </select>
+                    </div>
+                    <button onClick={handleGenerateCoverLetter} disabled={generatingCL} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingCL ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
+                      {generatingCL ? "Generating..." : "Generate"}
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -246,11 +289,14 @@ export default function Assessment() {
                 {tailoredResume ? (
                   <>
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
-                    <button onClick={() => downloadAsText(tailoredResume, "tailored_resume.txt")} className="btn-primary w-full">Download</button>
+                    <div className="flex gap-2">
+                      <button onClick={() => downloadText(tailoredResume, "tailored_resume.txt")} className="flex-1 btn-secondary text-sm">?? TXT</button>
+                      <button onClick={() => downloadDocx(tailoredResume, "tailored_resume.docx")} className="flex-1 btn-primary text-sm">?? DOCX</button>
+                    </div>
                   </>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={generatingTR || result.tailorWorth < 30} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingTR || result.tailorWorth < 30 ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}>
-                    {generatingTR ? "Generating..." : result.tailorWorth < 30 ? "Not Needed (Already Good Fit)" : "Generate Tailored Resume"}
+                    {generatingTR ? "Generating..." : result.tailorWorth < 30 ? "Not Needed (Already Good Fit)" : "Generate"}
                   </button>
                 )}
               </div>
@@ -260,11 +306,11 @@ export default function Assessment() {
                 {linkedInMessage ? (
                   <>
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 text-sm" />
-                    <button onClick={() => downloadAsText(linkedInMessage, "linkedin_message.txt")} className="btn-primary w-full">Download</button>
+                    <button onClick={() => downloadText(linkedInMessage, "linkedin_message.txt")} className="w-full btn-primary">?? Download</button>
                   </>
                 ) : (
                   <button onClick={handleGenerateLinkedIn} disabled={generatingLI} className={`w-full px-4 py-2 rounded-lg font-semibold text-white ${generatingLI ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"}`}>
-                    {generatingLI ? "Generating..." : "Generate LinkedIn Message"}
+                    {generatingLI ? "Generating..." : "Generate"}
                   </button>
                 )}
               </div>
@@ -277,5 +323,3 @@ export default function Assessment() {
     </div>
   )
 }
-
-
