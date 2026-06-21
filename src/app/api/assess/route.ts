@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../../lib/auth"
-import { prisma } from "../../../lib/prisma"
 import Groq from "groq-sdk"
 
 export const maxDuration = 60
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest) {
       max_tokens: 1024,
       messages: [{
         role: "user",
-        content: `Analyze resume vs job. Respond with ONLY valid JSON:
+        content: `Analyze resume vs job. Return ONLY valid JSON (no markdown):
 RESUME: ${resume.substring(0, 800)}
 JOB: ${jobTitle} at ${company}
 DESCRIPTION: ${jobDescription.substring(0, 800)}
@@ -34,18 +33,20 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
       }],
     })
 
-    const content = completion.choices[0]?.message?.content
+    let content = completion.choices[0]?.message?.content
     if (!content) {
       return NextResponse.json({ error: "No response from Groq" }, { status: 500 })
     }
 
+    // Strip markdown code fences if present
+    content = content.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim()
+
     const result = JSON.parse(content)
 
-    // Save to database (non-blocking - fire and forget)
+    // Save to database (non-blocking)
     try {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-      })
+      const { prisma } = await import("../../../lib/prisma")
+      const user = await prisma.user.findUnique({ where: { email: session.user.email } })
       if (user) {
         prisma.assessment.create({
           data: {
@@ -62,7 +63,7 @@ DESCRIPTION: ${jobDescription.substring(0, 800)}
             gaps: result.gaps.join("|"),
             missingKeywords: result.missingKeywords.join("|"),
           },
-        }).catch(() => {}) // Ignore db errors
+        }).catch(() => {})
       }
     } catch {}
 
