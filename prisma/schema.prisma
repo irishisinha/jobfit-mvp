@@ -53,9 +53,9 @@ model Assessment {
   successProbability    Int
   tailorWorth           Int
   
-  strengths             String[]
-  gaps                  String[]
-  missingKeywords       String[]
+  strengths             String   @default("[]")
+  gaps                  String   @default("[]")
+  missingKeywords       String   @default("[]")
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
