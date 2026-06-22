@@ -196,7 +196,10 @@ export default function Assessment() {
         <div className="container-main py-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold">JobFit Assessment</h1>
           <div className="flex gap-3">
-            <Link href="/resumes" className="btn-secondary">My Resumes ({savedResumes.length})</Link>
+            <Link href="/resumes" className="btn-secondary">Resumes</Link>
+            <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
+            <Link href="/linkedin-optimizer" className="btn-secondary">LinkedIn</Link>
+            <Link href="/consistency-checker" className="btn-secondary">Checker ({savedResumes.length})</Link>
             <Link href="/consistency-checker" className="btn-secondary">Checker</Link>
             <button onClick={() => signOut()} className="btn-secondary">Sign Out</button>
           </div>
