@@ -79,15 +79,13 @@ export default function Assessment() {
         body: JSON.stringify({ jobDescription }),
       })
       const extractData = await extractRes.json()
-      const extractedTitle = extractData.jobTitle || "Job Position"
-      const extractedCompany = extractData.company || "Company"
-      setExtractedJobTitle(extractedTitle)
-      setExtractedCompany(extractedCompany)
+      setExtractedJobTitle(extractData.jobTitle || jobTitle || "Job Position")
+      setExtractedCompany(extractData.company || company || "Company")
 
       const res = await fetch("/api/suggest-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription, jobTitle: extractedTitle, company: extractedCompany, resumes: savedResumes }),
+        body: JSON.stringify({ jobDescription, jobTitle, company, resumes: savedResumes }),
       })
 
       const data = await res.json()
@@ -111,9 +109,8 @@ export default function Assessment() {
 
       if (!assessRes.ok) throw new Error("Assessment failed")
       const assessData = await assessRes.json()
-      setResult(assessData)
       
-       await fetch("/api/assessments", {
+      await fetch("/api/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -408,8 +405,6 @@ export default function Assessment() {
     </div>
   )
 }
-
-
 
 
 
