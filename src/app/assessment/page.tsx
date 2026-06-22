@@ -470,7 +470,7 @@ export default function Assessment() {
                 {tailoredResume ? (
                   <div className="space-y-2">
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(tailoredResume, "Tailored-Resume")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
@@ -484,7 +484,7 @@ export default function Assessment() {
                 {linkedInMessage ? (
                   <div className="space-y-2">
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(linkedInMessage, "LinkedIn-Outreach")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">Generate</button>
@@ -513,6 +513,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 
