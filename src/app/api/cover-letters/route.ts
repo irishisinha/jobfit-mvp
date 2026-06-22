@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
@@ -57,7 +57,7 @@ Return ONLY the cover letter text, no headers.`
       return NextResponse.json({ error: "Empty response from Groq" }, { status: 500 })
     }
 
-    return NextResponse.json({ coverLetter: cleanText(completion.choices[0]?.message?.content || "") })
+    return NextResponse.json({ coverLetter: completion.choices[0]?.message?.content || "" })
   } catch (error) {
     console.error("Cover letter error:", error)
     return NextResponse.json({
@@ -66,3 +66,6 @@ Return ONLY the cover letter text, no headers.`
     }, { status: 500 })
   }
 }
+
+
+
