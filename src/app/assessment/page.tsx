@@ -39,6 +39,8 @@ export default function Assessment() {
   const [selectedResume, setSelectedResume] = useState<SavedResume | null>(null)
   const [allResumes, setAllResumes] = useState<SavedResume[]>([])
   const [step, setStep] = useState<"input" | "results">("input")
+  const [extractedJobTitle, setExtractedJobTitle] = useState("")
+  const [extractedCompany, setExtractedCompany] = useState("")
   const [coverLetter, setCoverLetter] = useState("")
   const [tailoredResume, setTailoredResume] = useState("")
   const [linkedInMessage, setLinkedInMessage] = useState("")
@@ -78,6 +80,16 @@ export default function Assessment() {
     setLoading(true)
     setError("")
     setStep("results")
+
+    // Extract job title and company from JD
+    const extractRes = await fetch("/api/extract-job-info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobDescription }),
+    })
+    const extractData = await extractRes.json()
+    setExtractedJobTitle(extractData.jobTitle || jobTitle || "Job Position")
+    setExtractedCompany(extractData.company || company || "Company")
 
     try {
       // Score ALL resumes in ONE call for consistency
@@ -426,5 +438,7 @@ export default function Assessment() {
     </div>
   )
 }
+
+
 
 
