@@ -48,6 +48,17 @@ export default function Assessment() {
   const [tailoredResume, setTailoredResume] = useState("")
   const [linkedInMessage, setLinkedInMessage] = useState("")
 
+  const saveToLocalStorage = (assessment: any) => {
+    try {
+      const stored = localStorage.getItem("jobfit_assessments") || "[]"
+      const assessments = JSON.parse(stored)
+      assessments.unshift(assessment)
+      localStorage.setItem("jobfit_assessments", JSON.stringify(assessments.slice(0, 100)))
+    } catch (e) {
+      console.error("Error saving:", e)
+    }
+  }
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
   }, [status, router])
@@ -161,6 +172,7 @@ export default function Assessment() {
           selectedResume: topResume.name,
         }),
       }).catch(() => {})
+      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedTitle, company: extractedCompany, jobDescription, verdict: assessData.verdict, fitScore: assessData.fitScore, atsMatch: assessData.atsMatch, successProbability: assessData.successProbability, tailorWorth: assessData.tailorWorth, strengths: assessData.strengths, gaps: assessData.gaps, missingKeywords: assessData.missingKeywords, selectedResume: topResume.name, createdAt: new Date().toISOString() })
     } catch (err) {
       setError("Failed to analyze job and resumes")
       setStep("input")
@@ -205,6 +217,7 @@ export default function Assessment() {
           selectedResume: resume.name,
         }),
       }).catch(() => {})
+      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedJobTitle, company: extractedCompany, jobDescription, verdict: assessData.verdict, fitScore: assessData.fitScore, atsMatch: assessData.atsMatch, successProbability: assessData.successProbability, tailorWorth: assessData.tailorWorth, strengths: assessData.strengths, gaps: assessData.gaps, missingKeywords: assessData.missingKeywords, selectedResume: topResume.name, createdAt: new Date().toISOString() })
     } catch (err) {
       setError("Failed to assess this resume")
     } finally {
