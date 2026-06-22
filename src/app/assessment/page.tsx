@@ -161,7 +161,7 @@ export default function Assessment() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          jobTitle: extractedTitle,
+          jobTitle: extractedJobTitle,
           company: extractedCompany,
           jobDescription,
           verdict: data.verdict,
@@ -408,6 +408,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 
