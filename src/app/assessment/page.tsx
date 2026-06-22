@@ -47,6 +47,7 @@ export default function Assessment() {
   const [coverLetter, setCoverLetter] = useState("")
   const [tailoredResume, setTailoredResume] = useState("")
   const [linkedInMessage, setLinkedInMessage] = useState("")
+  const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "warm">("professional")
 
   const saveToLocalStorage = (assessment: any) => {
     try {
@@ -147,7 +148,8 @@ export default function Assessment() {
       const assessRes = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: topResume.content, jobDescription, jobTitle, company }),
+        body: JSON.stringify({ resume: topResume.content, jobDescription, jobTitle, company , tone: coverLetterTone,
+        }),
       })
 
       if (!assessRes.ok) throw new Error("Assessment failed")
@@ -193,7 +195,8 @@ export default function Assessment() {
       const res = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: resume.content, jobDescription, jobTitle, company }),
+        body: JSON.stringify({ resume: resume.content, jobDescription, jobTitle, company , tone: coverLetterTone,
+        }),
       })
       if (!res.ok) throw new Error("Assessment failed")
       const data = await res.json()
@@ -231,7 +234,8 @@ export default function Assessment() {
       const res = await fetch("/api/cover-letters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords }),
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords , tone: coverLetterTone,
+        }),
       })
       const data = await res.json()
       setCoverLetter(data.coverLetter || "Failed to generate")
@@ -246,7 +250,8 @@ export default function Assessment() {
       const res = await fetch("/api/tailored-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company }),
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company , tone: coverLetterTone,
+        }),
       })
       const data = await res.json()
       setTailoredResume(data.tailoredResume || "Failed to generate")
@@ -261,7 +266,8 @@ export default function Assessment() {
       const res = await fetch("/api/linkedin-outreach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company }),
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company , tone: coverLetterTone,
+        }),
       })
       const data = await res.json()
       setLinkedInMessage(data.linkedInMessage || "Failed to generate")
@@ -283,7 +289,6 @@ export default function Assessment() {
             <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
             <Link href="/linkedin-optimizer" className="btn-secondary">LinkedIn</Link>
             <Link href="/consistency-checker" className="btn-secondary">Checker ({savedResumes.length})</Link>
-            <Link href="/consistency-checker" className="btn-secondary">Checker</Link>
             <button onClick={() => signOut()} className="btn-secondary">Sign Out</button>
           </div>
         </div>
@@ -421,6 +426,11 @@ export default function Assessment() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-6 shadow">
                 <h3 className="text-lg font-bold text-blue-600 mb-4">📄 Cover Letter</h3>
+                <div className="flex gap-2 mb-4">
+                  <button onClick={() => setCoverLetterTone("professional")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "professional" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Professional</button>
+                  <button onClick={() => setCoverLetterTone("enthusiastic")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "enthusiastic" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Enthusiastic</button>
+                  <button onClick={() => setCoverLetterTone("warm")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "warm" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Warm</button>
+                </div>
                 {coverLetter ? (
                   <div className="space-y-2">
                     <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
@@ -446,7 +456,7 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-purple-600 mb-4">💼 LinkedIn Message</h3>
+                <h3 className="text-lg font-bold text-purple-600 mb-4">📧 LinkedIn Outreach</h3>
                 {linkedInMessage ? (
                   <div className="space-y-2">
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
@@ -479,6 +489,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 

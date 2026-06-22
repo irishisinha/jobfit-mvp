@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { resume, jobDescription, jobTitle, company, tone = "professional", strengths = [], gaps = [], missingKeywords = [] } = await req.json()
+    const { resume, jobDescription, tone = "professional", jobTitle, company, strengths = [], gaps = [], missingKeywords = [] } = await req.json()
 
     if (!resume?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
@@ -66,6 +66,7 @@ Return ONLY the cover letter text, no headers.`
     }, { status: 500 })
   }
 }
+
 
 
 
