@@ -21,37 +21,56 @@ export async function POST(req: NextRequest) {
     const completion = await groq.chat.completions.create({
       messages: [{
         role: "user",
-        content: `Reorder and emphasize this resume for: ${jobTitle} at ${company}
+        content: `Tailor this resume for: ${jobTitle} at ${company}
 
-RULES:
-1. Use ONLY skills/experience already in resume
-2. Reorder sections to highlight what matches this job
-3. Use job keywords where appropriate
-4. Never add false experience
-5. Output the TAILORED RESUME only (full resume)
+IMPORTANT RULES:
+- Only use skills/experience ALREADY in the resume
+- Reorder sections to highlight matching skills first
+- Use keywords from job description where they apply
+- Never add false experience or education
+- Make the match OBVIOUS to a hiring manager
 
-ORIGINAL RESUME:
+RESUME:
 ${resume.substring(0, 1500)}
 
-JOB DESCRIPTION:
-${jobDescription.substring(0, 1000)}
+JOB POSTING:
+${jobDescription.substring(0, 1200)}
 
-OUTPUT ONLY THE TAILORED RESUME (no explanations):`,
+OUTPUT FORMAT:
+[Tailored resume with reordered sections - put most relevant experience first]
+
+Then on a new line:
+CHANGES:
+[1-3 bullet points of what you reordered/emphasized]
+
+OUTPUT BOTH SECTIONS:`,
       }],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 2000,
+      max_tokens: 2500,
     })
 
-    const tailoredResume = completion.choices[0]?.message?.content || "Unable to tailor resume"
+    const fullContent = completion.choices[0]?.message?.content || ""
+    
+    // Parse resume and changes
+    const changesIndex = fullContent.lastIndexOf("CHANGES:")
+    const tailoredResume = changesIndex > 0 
+      ? fullContent.substring(0, changesIndex).trim()
+      : fullContent
+
+    const changes = changesIndex > 0
+      ? fullContent.substring(changesIndex + 8).trim()
+      : "Resume reordered to highlight most relevant experience first"
 
     return NextResponse.json({
-      tailoredResume: tailoredResume.trim()
+      tailoredResume: tailoredResume || "Unable to tailor",
+      changes: changes.split('\n').slice(0, 3).join('\n')
     })
   } catch (error) {
     console.error("Error:", error)
     return NextResponse.json({ 
-      tailoredResume: "Error generating tailored resume - please try again"
+      tailoredResume: "Error generating tailored resume",
+      changes: "Please try again"
     }, { status: 500 })
   }
 }

@@ -1,9 +1,20 @@
-﻿import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
 
 export const maxDuration = 60
+
+function calculateAtsMatch(resume: string, jobDescription: string): number {
+  // Simple keyword matching for ATS
+  const jobKeywords = jobDescription.toLowerCase().split(/\W+/)
+  const resumeKeywords = resume.toLowerCase().split(/\W+/)
+  const resumeSet = new Set(resumeKeywords)
+  
+  const matches = jobKeywords.filter(k => k.length > 3 && resumeSet.has(k)).length
+  const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
+  return Math.min(100, Math.max(20, percentage))
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,95 +33,75 @@ export async function POST(req: NextRequest) {
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 1500,
+      max_tokens: 1200,
       temperature: 0,
       messages: [{
         role: "user",
-        content: `You are a strict recruiter. Analyze resume vs job with REALISTIC scoring.
+        content: `Analyze resume for: ${jobTitle} at ${company}
 
-RESUME (first 1000 chars):
-${resume.substring(0, 1000)}
+RESUME (first 1200 chars):
+${resume.substring(0, 1200)}
 
-JOB: ${jobTitle} at ${company}
-DESCRIPTION (first 1000 chars):
-${jobDescription.substring(0, 1000)}
+JOB DESCRIPTION (first 1200 chars):
+${jobDescription.substring(0, 1200)}
 
-SCORING RULES (be conservative):
-- 90-100: Perfect fit, has nearly all requirements
-- 75-89: Strong fit, has core skills + relevant experience
-- 60-74: Moderate fit, missing some skills but trainable
-- 40-59: Weak fit, significant gaps
-- 0-39: Not viable for role
+Score 0-100 based on:
+- Required skills/experience present: 40 points
+- Nice-to-have skills present: 30 points  
+- Relevant industry experience: 20 points
+- Education/certifications: 10 points
 
-Respond with ONLY valid JSON (no markdown, no extra text):
+Respond ONLY with valid JSON (no other text):
 {
-  "fitScore": 45,
-  "verdict": "Moderate Fit",
-  "atsMatch": 50,
-  "strengths": ["skill1", "skill2", "skill3"],
-  "gaps": ["missing skill 1", "missing experience"],
-  "missingKeywords": ["keyword1", "keyword2"]
+  "fitScore": 65,
+  "strengths": ["skill from resume that matches job", "relevant experience"],
+  "gaps": ["skill job needs that resume lacks", "experience gap"],
+  "missingKeywords": ["important term from job not in resume"]
 }
 
-Do not add any text before or after JSON.`
+Be fair - many candidates have relevant but not perfect experience.`
       }],
     })
 
     let content = completion.choices[0]?.message?.content || "{}"
-    
-    // Clean up response
     content = content.replace(/^```[\s\S]*?```\n?/g, "").trim()
     content = content.replace(/^```json\n?|\n?```$/g, "").trim()
-    
-    // Try to parse JSON
+
     let data: any = {
-      fitScore: 50,
-      verdict: "Moderate Fit",
-      atsMatch: 50,
+      fitScore: 60,
       strengths: [],
       gaps: [],
       missingKeywords: []
     }
+
     try {
-      data = JSON.parse(content)
+      const parsed = JSON.parse(content)
+      data = { ...data, ...parsed }
     } catch (e) {
-      console.error("JSON parse error:", content)
-      data = {
-        fitScore: 50,
-        verdict: "Moderate Fit",
-        atsMatch: 50,
-        strengths: ["Unable to parse response"],
-        gaps: ["Please try again"],
-        missingKeywords: []
-      }
+      console.error("Parse error:", content.substring(0, 100))
     }
 
-    // Ensure arrays
-    const strengths = Array.isArray(data.strengths) ? data.strengths : []
-    const gaps = Array.isArray(data.gaps) ? data.gaps : []
-    const keywords = Array.isArray(data.missingKeywords) ? data.missingKeywords : []
+    const fitScore = Math.min(100, Math.max(0, data.fitScore || 60))
+    const atsMatch = calculateAtsMatch(resume, jobDescription)
 
-    const fitScore = Math.min(100, Math.max(0, data.fitScore || 50))
-    const atsMatch = Math.min(100, Math.max(0, data.atsMatch || 50))
-
-    // Success probability based on fit (realistic)
+    // Success probability - more balanced
     const successProbability = 
-      fitScore >= 75 ? 65 + Math.random() * 15 :
-      fitScore >= 50 ? 40 + Math.random() * 20 :
-      fitScore >= 30 ? 15 + Math.random() * 20 :
-      5
+      fitScore >= 80 ? 70 + Math.random() * 15 :
+      fitScore >= 65 ? 50 + Math.random() * 20 :
+      fitScore >= 50 ? 35 + Math.random() * 20 :
+      20 + Math.random() * 15
 
-    // Tailor worth (realistic)
+    // Tailor worth - only if it makes sense
     let tailorWorth = 0
-    if (fitScore >= 90) tailorWorth = 3
-    else if (fitScore >= 75) tailorWorth = 8
-    else if (fitScore >= 60) tailorWorth = 18
-    else if (fitScore >= 40) tailorWorth = 35
+    if (fitScore >= 85) tailorWorth = 0
+    else if (fitScore >= 70) tailorWorth = 10
+    else if (fitScore >= 55) tailorWorth = 25
+    else if (fitScore >= 40) tailorWorth = 40
     else tailorWorth = 0
 
     const verdict = 
       fitScore >= 75 ? "Strong Fit" :
-      fitScore >= 50 ? "Moderate Fit" :
+      fitScore >= 55 ? "Moderate Fit" :
       "Weak Fit"
 
     return NextResponse.json({
@@ -119,20 +110,20 @@ Do not add any text before or after JSON.`
       atsMatch: Math.round(atsMatch),
       successProbability: Math.round(successProbability),
       tailorWorth: Math.round(Math.max(0, tailorWorth)),
-      strengths: strengths.slice(0, 5),
-      gaps: gaps.slice(0, 5),
-      missingKeywords: keywords.slice(0, 5),
+      strengths: (data.strengths || []).slice(0, 4),
+      gaps: (data.gaps || []).slice(0, 4),
+      missingKeywords: (data.missingKeywords || []).slice(0, 5),
     })
   } catch (error) {
     console.error("Assess error:", error)
     return NextResponse.json({
       verdict: "Moderate Fit",
-      fitScore: 50,
+      fitScore: 60,
       atsMatch: 50,
-      successProbability: 45,
-      tailorWorth: 20,
-      strengths: ["Check your resume and job description"],
-      gaps: ["Unable to analyze - try again"],
+      successProbability: 50,
+      tailorWorth: 25,
+      strengths: [],
+      gaps: [],
       missingKeywords: [],
     })
   }
