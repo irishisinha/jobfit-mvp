@@ -227,6 +227,8 @@ export default function Assessment() {
   if (status === "loading") return <div className="p-8">Loading...</div>
   if (!session) return null
 
+    if (status === "loading") return <div className="p-8">Loading...</div>
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white shadow mb-8">
@@ -405,4 +407,7 @@ export default function Assessment() {
     </div>
   )
 }
+
+
+
 
