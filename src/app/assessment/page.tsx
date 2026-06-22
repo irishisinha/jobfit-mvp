@@ -109,7 +109,25 @@ export default function Assessment() {
 
       if (!assessRes.ok) throw new Error("Assessment failed")
       const assessData = await assessRes.json()
-      setResult(assessData)
+      
+      await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle,
+          company,
+          jobDescription,
+          verdict: assessData.verdict,
+          fitScore: assessData.fitScore,
+          atsMatch: assessData.atsMatch,
+          successProbability: assessData.successProbability,
+          tailorWorth: assessData.tailorWorth,
+          strengths: assessData.strengths,
+          gaps: assessData.gaps,
+          missingKeywords: assessData.missingKeywords,
+          selectedResume: topResume.name,
+        }),
+      }).catch(() => {})
     } catch (err) {
       setError("Failed to analyze job and resumes")
       setStep("input")
@@ -135,6 +153,25 @@ export default function Assessment() {
       if (!res.ok) throw new Error("Assessment failed")
       const data = await res.json()
       setResult(data)
+      
+      await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle,
+          company,
+          jobDescription,
+          verdict: data.verdict,
+          fitScore: data.fitScore,
+          atsMatch: data.atsMatch,
+          successProbability: data.successProbability,
+          tailorWorth: data.tailorWorth,
+          strengths: data.strengths,
+          gaps: data.gaps,
+          missingKeywords: data.missingKeywords,
+          selectedResume: resume.name,
+        }),
+      }).catch(() => {})
     } catch (err) {
       setError("Failed to assess this resume")
     } finally {
@@ -368,3 +405,4 @@ export default function Assessment() {
     </div>
   )
 }
+

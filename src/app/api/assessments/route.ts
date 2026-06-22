@@ -1,40 +1,52 @@
+﻿import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../../../lib/auth"
-import { prisma } from "../../../lib/prisma"
 
-export const dynamic = "force-dynamic"
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession()
+    if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { jobTitle, company, jobDescription, verdict, fitScore, atsMatch, successProbability, tailorWorth, strengths, gaps, missingKeywords, selectedResume } = await req.json()
+
+    const assessment = {
+      id: Date.now().toString(),
+      userEmail: session.user.email,
+      jobTitle,
+      company,
+      jobDescription,
+      verdict,
+      fitScore,
+      atsMatch,
+      successProbability,
+      tailorWorth,
+      strengths,
+      gaps,
+      missingKeywords,
+      selectedResume,
+      createdAt: new Date().toISOString(),
+    }
+
+    if (!global.assessments) global.assessments = []
+    global.assessments.push(assessment)
+
+    return NextResponse.json({ success: true, id: assessment.id })
+  } catch (err) {
+    console.error("Error:", err)
+    return NextResponse.json({ error: "Failed to save" }, { status: 500 })
+  }
+}
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json([])
-    }
+    const session = await getServerSession()
+    if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
-        assessments: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    })
+    if (!global.assessments) global.assessments = []
+    const userAssessments = global.assessments.filter((a: any) => a.userEmail === session.user.email)
 
-    if (!user) {
-      return NextResponse.json([])
-    }
-
-    const parsed = user.assessments.map((a: any) => ({
-      ...a,
-      strengths: typeof a.strengths === "string" ? JSON.parse(a.strengths || "[]") : (Array.isArray(a.strengths) ? a.strengths : []),
-      gaps: typeof a.gaps === "string" ? JSON.parse(a.gaps || "[]") : (Array.isArray(a.gaps) ? a.gaps : []),
-      missingKeywords: typeof a.missingKeywords === "string" ? JSON.parse(a.missingKeywords || "[]") : (Array.isArray(a.missingKeywords) ? a.missingKeywords : []),
-    }))
-
-    return NextResponse.json(parsed)
-  } catch (error) {
-    console.error("GET assessments error:", error)
-    return NextResponse.json([])
+    return NextResponse.json(userAssessments.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+  } catch (err) {
+    console.error("Error:", err)
+    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 })
   }
 }
