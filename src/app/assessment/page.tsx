@@ -50,28 +50,19 @@ export default function Assessment() {
   }, [status, router])
 
   useEffect(() => {
-    if (status === "authenticated") {
-      loadSavedResumes()
-    }
-  }, [status])
-
-  const loadSavedResumes = () => {
     try {
       const stored = localStorage.getItem("jobfit_resumes")
-      if (stored) {
-        setSavedResumes(JSON.parse(stored))
-      }
+      if (stored) setSavedResumes(JSON.parse(stored))
     } catch (e) {
       console.error("Error loading resumes:", e)
     }
-  }
+  }, [status])
 
   const handleAnalyzeJob = async () => {
     if (!jobDescription.trim()) {
       setError("Please enter a job description")
       return
     }
-
     if (savedResumes.length === 0) {
       setError("Please save at least one resume first")
       return
@@ -81,56 +72,39 @@ export default function Assessment() {
     setError("")
     setStep("results")
 
-    // Extract job title and company from JD
-    const extractRes = await fetch("/api/extract-job-info", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobDescription }),
-    })
-    const extractData = await extractRes.json()
-    setExtractedJobTitle(extractData.jobTitle || jobTitle || "Job Position")
-    setExtractedCompany(extractData.company || company || "Company")
-
     try {
-      // Score ALL resumes in ONE call for consistency
+      const extractRes = await fetch("/api/extract-job-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobDescription }),
+      })
+      const extractData = await extractRes.json()
+      setExtractedJobTitle(extractData.jobTitle || jobTitle || "Job Position")
+      setExtractedCompany(extractData.company || company || "Company")
+
       const res = await fetch("/api/suggest-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          jobDescription, 
-          jobTitle, 
-          company,
-          resumes: savedResumes 
-        }),
+        body: JSON.stringify({ jobDescription, jobTitle, company, resumes: savedResumes }),
       })
 
       const data = await res.json()
       const suggestions = data.suggestions || []
-
-      // Map scores back to resumes
       const scored = savedResumes.map(resume => {
         const match = suggestions.find((s: any) => s.id === resume.id)
         return { ...resume, matchScore: match?.score || 50, tailorWorth: match?.tailorWorth, recommendation: match?.recommendation }
       })
 
-      // Sort by score
       const sorted = scored.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
       setAllResumes(sorted)
 
-      // Auto-select top resume
       const topResume = sorted[0]
       setSelectedResume(topResume)
 
-      // Run full assessment on top resume
       const assessRes = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume: topResume.content,
-          jobDescription,
-          jobTitle,
-          company,
-        }),
+        body: JSON.stringify({ resume: topResume.content, jobDescription, jobTitle, company }),
       })
 
       if (!assessRes.ok) throw new Error("Assessment failed")
@@ -156,14 +130,8 @@ export default function Assessment() {
       const res = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume: resume.content,
-          jobDescription,
-          jobTitle,
-          company,
-        }),
+        body: JSON.stringify({ resume: resume.content, jobDescription, jobTitle, company }),
       })
-
       if (!res.ok) throw new Error("Assessment failed")
       const data = await res.json()
       setResult(data)
@@ -176,20 +144,11 @@ export default function Assessment() {
 
   const handleGenerateCoverLetter = async () => {
     if (!result || !selectedResume) return
-
     try {
       const res = await fetch("/api/cover-letters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume: selectedResume.content,
-          jobDescription,
-          jobTitle,
-          company,
-          strengths: result.strengths,
-          gaps: result.gaps,
-          missingKeywords: result.missingKeywords,
-        }),
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords }),
       })
       const data = await res.json()
       setCoverLetter(data.coverLetter || "Failed to generate")
@@ -200,17 +159,11 @@ export default function Assessment() {
 
   const handleGenerateTailoredResume = async () => {
     if (!result || !selectedResume) return
-
     try {
       const res = await fetch("/api/tailored-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume: selectedResume.content,
-          jobDescription,
-          jobTitle,
-          company,
-        }),
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company }),
       })
       const data = await res.json()
       setTailoredResume(data.tailoredResume || "Failed to generate")
@@ -221,17 +174,11 @@ export default function Assessment() {
 
   const handleGenerateLinkedIn = async () => {
     if (!result || !selectedResume) return
-
     try {
       const res = await fetch("/api/linkedin-outreach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume: selectedResume.content,
-          jobDescription,
-          jobTitle,
-          company,
-        }),
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company }),
       })
       const data = await res.json()
       setLinkedInMessage(data.linkedInMessage || "Failed to generate")
@@ -250,9 +197,7 @@ export default function Assessment() {
           <h1 className="text-3xl font-bold">JobFit Assessment</h1>
           <div className="flex gap-3">
             <Link href="/resumes" className="btn-secondary">My Resumes ({savedResumes.length})</Link>
-            <Link href="/insights" className="btn-secondary">Insights</Link>
-            <Link href="/linkedin-optimizer" className="btn-secondary">LinkedIn</Link>
-            <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
+            <Link href="/consistency-checker" className="btn-secondary">Checker</Link>
             <button onClick={() => signOut()} className="btn-secondary">Sign Out</button>
           </div>
         </div>
@@ -264,81 +209,75 @@ export default function Assessment() {
             <h2 className="text-2xl font-bold mb-6">Analyze a Job</h2>
             <div className="mb-6">
               <label className="block text-sm font-bold mb-2">Job Description</label>
-              <textarea
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste the job description..."
-                className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <input
-                type="text"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                placeholder="Job Title"
-                className="px-4 py-2 border-2 border-gray-300 rounded-lg"
-              />
-              <input
-                type="text"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="Company"
-                className="px-4 py-2 border-2 border-gray-300 rounded-lg"
-              />
+              <textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the job description..." className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm" />
             </div>
             {error && <div className="bg-red-100 border-2 border-red-500 text-red-800 p-4 rounded-lg mb-4">{error}</div>}
-            <button
-              onClick={handleAnalyzeJob}
-              disabled={loading || !jobDescription.trim() || savedResumes.length === 0}
-              className={`w-full px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}
-            >
+            <button onClick={handleAnalyzeJob} disabled={loading || !jobDescription.trim() || savedResumes.length === 0} className={`w-full px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}>
               {loading ? "Analyzing..." : "Analyze & Get Recommendation"}
             </button>
-            {savedResumes.length === 0 && (
-              <p className="text-center text-red-600 mt-4 font-semibold">
-                Save at least one resume first in <Link href="/resumes" className="underline">My Resumes</Link>
-              </p>
-            )}
           </div>
         )}
 
         {step === "results" && result && selectedResume && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-500">
-              <p className="text-sm text-green-700 font-bold mb-2">RECOMMENDED RESUME</p>
-              <h2 className="text-2xl font-bold text-gray-800">{selectedResume.name}</h2>
-              <p className="text-gray-600">Match Score: {selectedResume.matchScore}% for {jobTitle} at {company}</p>
-              {selectedResume.recommendation && <p className="text-sm text-green-800 mt-2 italic">{selectedResume.recommendation}</p>}
-            </div>
-
-            <div className="bg-white rounded-lg p-8 shadow">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-gray-600 text-sm mb-1">Verdict</p>
-                  <p className={`text-lg font-bold ${result.verdict === "Strong Fit" ? "text-green-600" : result.verdict === "Moderate Fit" ? "text-yellow-600" : "text-red-600"}`}>
-                    {result.verdict}
-                  </p>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-500 shadow-lg">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-white bg-opacity-70 rounded-lg p-3">
+                  <p className="text-xs font-bold text-green-700 uppercase mb-1">Position</p>
+                  <p className="text-lg font-bold text-gray-800">{extractedJobTitle}</p>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-gray-600 text-sm mb-1">Fit Score</p>
-                  <p className="text-2xl font-bold text-blue-600">{(result.fitScore / 10).toFixed(1)}/10</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-gray-600 text-sm mb-1">ATS Match</p>
-                  <p className="text-2xl font-bold text-indigo-600">{result.atsMatch}%</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-gray-600 text-sm mb-1">Success Rate</p>
-                  <p className="text-2xl font-bold text-purple-600">{result.successProbability}%</p>
-                </div>
-                <div className={`rounded-lg p-4 ${result.tailorWorth < 5 ? "bg-green-50" : result.tailorWorth < 20 ? "bg-yellow-50" : "bg-orange-50"}`}>
-                  <p className="text-gray-600 text-sm mb-1">Tailor Worth</p>
-                  <p className={`text-2xl font-bold ${result.tailorWorth < 5 ? "text-green-600" : result.tailorWorth < 20 ? "text-yellow-600" : "text-orange-600"}`}>{result.tailorWorth}%</p>
-                  <p className="text-xs text-gray-600">{result.tailorWorth < 5 ? "Perfect match" : result.tailorWorth < 20 ? "Minor improvements possible" : "Significant improvements possible"}</p>
+                <div className="bg-white bg-opacity-70 rounded-lg p-3">
+                  <p className="text-xs font-bold text-green-700 uppercase mb-1">Company</p>
+                  <p className="text-lg font-bold text-gray-800">{extractedCompany}</p>
                 </div>
               </div>
 
+              <div className="bg-white bg-opacity-70 rounded-lg p-3 mb-4">
+                <p className="text-xs font-bold text-green-700 uppercase mb-1">Selected Resume</p>
+                <p className="text-lg font-semibold text-gray-800">{selectedResume.name}</p>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                <div className="bg-white rounded p-2">
+                  <p className="text-xs text-gray-600">Fit Score</p>
+                  <p className="text-xl font-bold text-blue-600">{result.fitScore}%</p>
+                </div>
+                <div className="bg-white rounded p-2">
+                  <p className="text-xs text-gray-600">ATS Match</p>
+                  <p className="text-xl font-bold text-indigo-600">{result.atsMatch}%</p>
+                </div>
+                <div className="bg-white rounded p-2">
+                  <p className="text-xs text-gray-600">Success Rate</p>
+                  <p className="text-xl font-bold text-purple-600">{result.successProbability}%</p>
+                </div>
+                <div className={`rounded p-2 ${result.tailorWorth < 5 ? "bg-green-100" : result.tailorWorth < 20 ? "bg-yellow-100" : "bg-orange-100"}`}>
+                  <p className="text-xs text-gray-600">Tailor Worth</p>
+                  <p className={`text-xl font-bold ${result.tailorWorth < 5 ? "text-green-600" : result.tailorWorth < 20 ? "text-yellow-600" : "text-orange-600"}`}>{result.tailorWorth}%</p>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t-2 border-green-300">
+                {result.fitScore >= 75 ? (
+                  <div className="bg-green-100 rounded-lg p-3 mb-3">
+                    <p className="text-sm font-bold text-green-800">✓ APPLY: Strong match with your qualifications</p>
+                  </div>
+                ) : result.fitScore >= 50 ? (
+                  <div className="bg-yellow-100 rounded-lg p-3 mb-3">
+                    <p className="text-sm font-bold text-yellow-800">⚠ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
+                  </div>
+                ) : (
+                  <div className="bg-red-100 rounded-lg p-3 mb-3">
+                    <p className="text-sm font-bold text-red-800">✗ RISKY: Weak match - significant skill gaps</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedResume.recommendation && (
+                <p className="text-sm text-green-800 italic pt-2 border-t border-green-200">{selectedResume.recommendation}</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-lg p-8 shadow">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-green-600 mb-3">Strengths</h3>
@@ -365,12 +304,10 @@ export default function Assessment() {
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-yellow-600 mb-3">Keywords to Add</h3>
+                <h3 className="text-lg font-bold text-yellow-600 mb-3">Keywords to Emphasize</h3>
                 <div className="flex flex-wrap gap-2">
                   {(result.missingKeywords || []).map((k, i) => (
-                    <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                      {k}
-                    </span>
+                    <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{k}</span>
                   ))}
                 </div>
               </div>
@@ -382,9 +319,7 @@ export default function Assessment() {
                 {coverLetter ? (
                   <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
-                  <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">
-                    Generate
-                  </button>
+                  <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">Generate</button>
                 )}
               </div>
 
@@ -393,8 +328,8 @@ export default function Assessment() {
                 {tailoredResume ? (
                   <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
-                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 20 ? "opacity-50 cursor-not-allowed" : ""} btn-primary`}>
-                    {result.tailorWorth < 20 ? "Perfect Fit - No Tailoring Needed" : "Generate Tailored Resume"}
+                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
+                    {result.tailorWorth < 5 ? "Perfect Fit - No Changes Needed" : "Generate Tailored Resume"}
                   </button>
                 )}
               </div>
@@ -404,9 +339,7 @@ export default function Assessment() {
                 {linkedInMessage ? (
                   <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
-                  <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">
-                    Generate
-                  </button>
+                  <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">Generate</button>
                 )}
               </div>
             </div>
@@ -416,11 +349,7 @@ export default function Assessment() {
                 <h3 className="text-lg font-bold text-gray-700 mb-4">Try Other Resumes</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {allResumes.slice(1).map((resume) => (
-                    <button
-                      key={resume.id}
-                      onClick={() => handleSelectDifferentResume(resume)}
-                      className="text-left p-3 rounded-lg border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition"
-                    >
+                    <button key={resume.id} onClick={() => handleSelectDifferentResume(resume)} className="text-left p-3 rounded-lg border-2 border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition">
                       <p className="font-bold text-gray-800">{resume.name}</p>
                       <p className="text-sm text-gray-600">Match: {resume.matchScore}%</p>
                     </button>
@@ -429,16 +358,10 @@ export default function Assessment() {
               </div>
             )}
 
-            <button onClick={() => setStep("input")} className="w-full btn-secondary py-3 text-lg font-bold">
-              Analyze Another Job
-            </button>
+            <button onClick={() => setStep("input")} className="w-full btn-secondary py-3 text-lg font-bold">Analyze Another Job</button>
           </div>
         )}
       </div>
     </div>
   )
 }
-
-
-
-
