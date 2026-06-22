@@ -190,7 +190,7 @@ export default function LinkedInOptimizerPage() {
                 <h3 className="text-lg font-bold mb-3">Pinned Skills to Prioritize</h3>
                 <ul className="space-y-1">
                   {(result.skillsSectionRecommendations || []).map((s: any, i: number) => (
-                    <li key={i} className="text-sm">âœ“ {s.skill} â€” {s.action}</li>
+                    <li key={i} className="text-sm">âœ“ {s.skill} '” {s.action}</li>
                   ))}
                 </ul>
               </div>

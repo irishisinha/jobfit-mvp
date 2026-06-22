@@ -86,13 +86,13 @@ export default function ConsistencyCheckerPage() {
             <div className="bg-white rounded-lg p-8 shadow mb-8">
               <h2 className="text-2xl font-bold mb-4 text-blue-700">Why This Matters</h2>
               <p className="text-gray-700 mb-4">
-                You have multiple resumes for different roles (Senior PM, Product Manager, Consultant, etc.). Great â€” but if they contradict each other, LinkedIn and hiring managers will notice.
+                You have multiple resumes for different roles (Senior PM, Product Manager, Consultant, etc.). Great '” but if they contradict each other, LinkedIn and hiring managers will notice.
               </p>
               <ul className="space-y-2 text-gray-700">
-                <li>âœ— Resume A says you managed $10M P&L, Resume B says $1M â€” which is true?</li>
-                <li>âœ— Resume A lists 5 years at Company X, Resume B lists 7 years â€” which is real?</li>
+                <li>âœ— Resume A says you managed $10M P&L, Resume B says $1M '” which is true?</li>
+                <li>âœ— Resume A lists 5 years at Company X, Resume B lists 7 years '” which is real?</li>
                 <li>âœ— Resume A claims "Head of Product" title, Resume B says "Senior PM" at same company same time</li>
-                <li>âœ— Dates overlap or don't add up â€” recruiter spots the lie immediately</li>
+                <li>âœ— Dates overlap or don't add up '” recruiter spots the lie immediately</li>
               </ul>
               <p className="text-gray-700 mt-4 font-semibold">
                 This tool finds those contradictions BEFORE you paste into LinkedIn.

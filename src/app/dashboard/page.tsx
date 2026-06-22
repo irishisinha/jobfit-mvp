@@ -95,7 +95,7 @@ export default function DashboardPage() {
               <p className="text-4xl font-bold text-blue-600">{stats.avg}%</p>
             </div>
             <div className="bg-white rounded-lg p-6 shadow">
-              <p className="text-gray-600 text-sm">Strong (Ã¢â€°Â¥75%)</p>
+              <p className="text-gray-600 text-sm">Strong (—°¥75%)</p>
               <p className="text-4xl font-bold text-green-600">{stats.strong}</p>
             </div>
             <div className="bg-white rounded-lg p-6 shadow">
