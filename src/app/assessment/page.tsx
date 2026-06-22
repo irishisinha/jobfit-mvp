@@ -31,6 +31,9 @@ export default function Assessment() {
   const router = useRouter()
   const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
   const [jobDescription, setJobDescription] = useState("")
+  const [inputMode, setInputMode] = useState<"paste" | "url">("paste")
+  const [jobUrl, setJobUrl] = useState("")
+  const [loadingUrl, setLoadingUrl] = useState(false)
   const [jobTitle, setJobTitle] = useState("")
   const [company, setCompany] = useState("")
   const [result, setResult] = useState<AssessmentResult | null>(null)
@@ -58,6 +61,33 @@ export default function Assessment() {
     }
   }, [status])
 
+
+  const handleFetchFromUrl = async () => {
+    if (!jobUrl.trim()) {
+      setError("Please enter a URL")
+      return
+    }
+    setLoadingUrl(true)
+    setError("")
+    try {
+      const res = await fetch("/api/fetch-jd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: jobUrl }),
+      })
+      const data = await res.json()
+      if (data.jobDescription) {
+        setJobDescription(data.jobDescription)
+        setInputMode("paste")
+      } else {
+        setError(data.error || "Failed to fetch URL")
+      }
+    } catch (err) {
+      setError("Failed to fetch from URL")
+    } finally {
+      setLoadingUrl(false)
+    }
+  }
   const handleAnalyzeJob = async () => {
     if (!jobDescription.trim()) {
       setError("Please enter a job description")
@@ -251,8 +281,27 @@ export default function Assessment() {
           <div className="bg-white rounded-lg p-8 shadow max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Analyze a Job</h2>
             <div className="mb-6">
-              <label className="block text-sm font-bold mb-2">Job Description</label>
-              <textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the job description..." className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm" />
+              <div className="flex gap-2 mb-4">
+                <button onClick={() => setInputMode("paste")} className={`px-4 py-2 rounded-lg font-bold ${inputMode === "paste" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Paste JD</button>
+                <button onClick={() => setInputMode("url")} className={`px-4 py-2 rounded-lg font-bold ${inputMode === "url" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Fetch from URL</button>
+              </div>
+              
+              {inputMode === "paste" ? (
+                <div>
+                  <label className="block text-sm font-bold mb-2">Job Description</label>
+                  <textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the job description..." className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm" />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-bold mb-2">Job URL</label>
+                  <div className="flex gap-2">
+                    <input type="url" value={jobUrl} onChange={(e) => setJobUrl(e.target.value)} placeholder="https://example.com/job-listing" className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg" />
+                    <button onClick={handleFetchFromUrl} disabled={loadingUrl || !jobUrl.trim()} className={`px-6 py-3 rounded-lg font-bold text-white ${loadingUrl ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"}`}>
+                      {loadingUrl ? "Fetching..." : "Fetch"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             {error && <div className="bg-red-100 border-2 border-red-500 text-red-800 p-4 rounded-lg mb-4">{error}</div>}
             <button onClick={handleAnalyzeJob} disabled={loading || !jobDescription.trim() || savedResumes.length === 0} className={`w-full px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}>
@@ -408,6 +457,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 

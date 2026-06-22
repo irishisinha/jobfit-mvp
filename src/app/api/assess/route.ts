@@ -73,9 +73,9 @@ Rules: Only real skills from resume. Return JSON only.`
       atsMatch: Math.min(100, Math.max(0, data.atsMatch || 50)),
       successProbability: Math.min(100, Math.max(0, data.successProbability || 50)),
       tailorWorth,
-      strengths: Array.isArray(data.strengths) ? data.strengths : [],
-      gaps: Array.isArray(data.gaps) ? data.gaps : [],
-      missingKeywords: Array.isArray(data.missingKeywords) ? data.missingKeywords : [],
+      strengths: cleanArray(data.strengths || []),
+      gaps: cleanArray(data.gaps || []),
+      missingKeywords: cleanArray(data.missingKeywords || []),
     })
   } catch (error) {
     console.error("Assess error:", error)
@@ -91,4 +91,5 @@ Rules: Only real skills from resume. Return JSON only.`
     })
   }
 }
+
 
