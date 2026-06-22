@@ -217,7 +217,7 @@ export default function Assessment() {
           selectedResume: resume.name,
         }),
       }).catch(() => {})
-      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedJobTitle, company: extractedCompany, jobDescription, verdict: assessData.verdict, fitScore: assessData.fitScore, atsMatch: assessData.atsMatch, successProbability: assessData.successProbability, tailorWorth: assessData.tailorWorth, strengths: assessData.strengths, gaps: assessData.gaps, missingKeywords: assessData.missingKeywords, selectedResume: topResume.name, createdAt: new Date().toISOString() })
+      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedJobTitle, company: extractedCompany, jobDescription, verdict: data.verdict, fitScore: data.fitScore, atsMatch: data.atsMatch, successProbability: data.successProbability, tailorWorth: data.tailorWorth, strengths: data.strengths, gaps: data.gaps, missingKeywords: data.missingKeywords, selectedResume: resume.name, createdAt: new Date().toISOString() })
     } catch (err) {
       setError("Failed to assess this resume")
     } finally {
