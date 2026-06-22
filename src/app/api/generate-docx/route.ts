@@ -1,4 +1,4 @@
-﻿import { Document, Packer, Paragraph, TextRun, HeadingLevel, PageBreak } from "docx"
+import { Document, Packer, Paragraph, HeadingLevel } from "docx"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const buffer = await Packer.toBuffer(doc)
 
-    return new NextResponse(buffer, {
+    return new NextResponse(Buffer.from(buffer), {
       headers: {
         "Content-Disposition": `attachment; filename="${title.replace(/\s+/g, "-")}.docx"`,
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
