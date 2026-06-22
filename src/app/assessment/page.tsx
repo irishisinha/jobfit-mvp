@@ -279,6 +279,30 @@ export default function Assessment() {
   if (status === "loading") return <div className="p-8">Loading...</div>
   if (!session) return null
 
+  
+  const downloadDocx = async (content: string, filename: string) => {
+    try {
+      const res = await fetch("/api/generate-docx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, title: filename })
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `${filename}.docx`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+    } catch (err) {
+      console.error("Download error:", err)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white shadow mb-8">
@@ -434,7 +458,7 @@ export default function Assessment() {
                 {coverLetter ? (
                   <div className="space-y-2">
                     <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => { const element = document.createElement("a"); element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(coverLetter)); element.setAttribute("download", "Cover-Letter.txt"); element.style.display = "none"; document.body.appendChild(element); element.click(); document.body.removeChild(element); }} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">Generate</button>
@@ -446,7 +470,7 @@ export default function Assessment() {
                 {tailoredResume ? (
                   <div className="space-y-2">
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => { const element = document.createElement("a"); element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(tailoredResume)); element.setAttribute("download", "Tailored-Resume.txt"); element.style.display = "none"; document.body.appendChild(element); element.click(); document.body.removeChild(element); }} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
@@ -460,7 +484,7 @@ export default function Assessment() {
                 {linkedInMessage ? (
                   <div className="space-y-2">
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => { const element = document.createElement("a"); element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(linkedInMessage)); element.setAttribute("download", "LinkedIn-Message.txt"); element.style.display = "none"; document.body.appendChild(element); element.click(); document.body.removeChild(element); }} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">Generate</button>
@@ -489,6 +513,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 

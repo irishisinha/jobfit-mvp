@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterVerdict, setFilterVerdict] = useState("all")
+  const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -127,7 +128,7 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-4">
             {filtered.map((a) => (
-              <div key={a.id} className="bg-white rounded-lg p-6 shadow hover:shadow-lg transition">
+              <div key={a.id} className="bg-white rounded-lg p-6 shadow hover:shadow-lg transition cursor-pointer" onClick={() => setSelectedAssessment(a)}>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                   <div>
                     <p className="text-xs text-gray-600 uppercase font-bold">Position</p>
@@ -170,4 +171,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
 
