@@ -420,18 +420,24 @@ export default function Assessment() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-blue-600 mb-4">Ã°Å¸â€œâ€ž Cover Letter</h3>
+                <h3 className="text-lg font-bold text-blue-600 mb-4">📄 Cover Letter</h3>
                 {coverLetter ? (
-                  <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
+                  <div className="space-y-2">
+                    <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
+                    <button onClick={() => { const element = document.createElement("a"); element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(coverLetter)); element.setAttribute("download", "Cover-Letter.txt"); element.style.display = "none"; document.body.appendChild(element); element.click(); document.body.removeChild(element); }} className="w-full btn-primary">⬇️ Download</button>
+                  </div>
                 ) : (
                   <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">Generate</button>
                 )}
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-green-600 mb-4">Ã°Å¸â€œâ€¹ Tailor Resume</h3>
+                <h3 className="text-lg font-bold text-green-600 mb-4">✏️ Tailored Resume</h3>
                 {tailoredResume ? (
-                  <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
+                  <div className="space-y-2">
+                    <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
+                    <button onClick={() => { const element = document.createElement("a"); element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(tailoredResume)); element.setAttribute("download", "Tailored-Resume.txt"); element.style.display = "none"; document.body.appendChild(element); element.click(); document.body.removeChild(element); }} className="w-full btn-primary">⬇️ Download</button>
+                  </div>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
                     {result.tailorWorth < 5 ? "Perfect Fit - No Changes Needed" : "Generate Tailored Resume"}
@@ -440,9 +446,12 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-purple-600 mb-4">Ã°Å¸â€™Â¼ LinkedIn</h3>
+                <h3 className="text-lg font-bold text-purple-600 mb-4">💼 LinkedIn Message</h3>
                 {linkedInMessage ? (
-                  <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
+                  <div className="space-y-2">
+                    <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
+                    <button onClick={() => { const element = document.createElement("a"); element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(linkedInMessage)); element.setAttribute("download", "LinkedIn-Message.txt"); element.style.display = "none"; document.body.appendChild(element); element.click(); document.body.removeChild(element); }} className="w-full btn-primary">⬇️ Download</button>
+                  </div>
                 ) : (
                   <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">Generate</button>
                 )}
@@ -470,6 +479,8 @@ export default function Assessment() {
     </div>
   )
 }
+
+
 
 
 
