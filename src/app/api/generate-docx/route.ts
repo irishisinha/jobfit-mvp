@@ -1,9 +1,9 @@
-import { Document, Packer, Paragraph, HeadingLevel } from "docx"
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    const { content, title } = await req.json()
+    const { content, title, type } = await req.json()
 
     const doc = new Document({
       sections: [
@@ -15,13 +15,13 @@ export async function POST(req: NextRequest) {
               spacing: { after: 200 },
             }),
             new Paragraph({
-              text: new Date().toLocaleDateString(),
+              text: `Generated on ${new Date().toLocaleDateString()}`,
               spacing: { after: 400 },
             }),
-            ...content.split("\n").map((line: string) =>
+            ...content.split("\n\n").map((paragraph: string) =>
               new Paragraph({
-                text: line || "",
-                spacing: { line: 240 },
+                text: paragraph,
+                spacing: { line: 240, after: 200 },
               })
             ),
           ],
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const buffer = await Packer.toBuffer(doc)
 
-    return new NextResponse(Buffer.from(buffer), {
+    return new NextResponse(buffer, {
       headers: {
         "Content-Disposition": `attachment; filename="${title.replace(/\s+/g, "-")}.docx"`,
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -39,6 +39,6 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error("Error:", err)
-    return NextResponse.json({ error: "Failed to generate" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to generate DOCX" }, { status: 500 })
   }
 }
