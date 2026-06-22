@@ -5,8 +5,16 @@ import Groq from "groq-sdk"
 
 export const maxDuration = 60
 
+// Remove all mojibake and non-ASCII characters
+function cleanText(text: string): string {
+  if (!text) return ""
+  return text
+    .replace(/[^\x20-\x7E\n\t]/g, "") // Keep only ASCII printable + newline/tab
+    .replace(/\s+/g, " ") // Normalize spaces
+    .trim()
+}
+
 function calculateAtsMatch(resume: string, jobDescription: string): number {
-  // Simple keyword matching for ATS
   const jobKeywords = jobDescription.toLowerCase().split(/\W+/)
   const resumeKeywords = resume.toLowerCase().split(/\W+/)
   const resumeSet = new Set(resumeKeywords)
@@ -39,33 +47,24 @@ export async function POST(req: NextRequest) {
         role: "user",
         content: `Analyze resume for: ${jobTitle} at ${company}
 
-RESUME (first 1200 chars):
+RESUME:
 ${resume.substring(0, 1200)}
 
-JOB DESCRIPTION (first 1200 chars):
+JOB DESCRIPTION:
 ${jobDescription.substring(0, 1200)}
 
-Score 0-100 based on:
-- Required skills/experience present: 40 points
-- Nice-to-have skills present: 30 points  
-- Relevant industry experience: 20 points
-- Education/certifications: 10 points
-
-Respond ONLY with valid JSON (no other text):
+Score 0-100. Respond ONLY with JSON (no markdown):
 {
   "fitScore": 65,
-  "strengths": ["skill from resume that matches job", "relevant experience"],
-  "gaps": ["skill job needs that resume lacks", "experience gap"],
-  "missingKeywords": ["important term from job not in resume"]
-}
-
-Be fair - many candidates have relevant but not perfect experience.`
+  "strengths": ["skill1", "skill2"],
+  "gaps": ["gap1"],
+  "missingKeywords": ["keyword1"]
+}`
       }],
     })
 
     let content = completion.choices[0]?.message?.content || "{}"
-    content = content.replace(/^```[\s\S]*?```\n?/g, "").trim()
-    content = content.replace(/^```json\n?|\n?```$/g, "").trim()
+    content = content.replace(/```json|\n```|```/g, "").trim()
 
     let data: any = {
       fitScore: 60,
@@ -75,8 +74,7 @@ Be fair - many candidates have relevant but not perfect experience.`
     }
 
     try {
-      const parsed = JSON.parse(content)
-      data = { ...data, ...parsed }
+      data = JSON.parse(content)
     } catch (e) {
       console.error("Parse error:", content.substring(0, 100))
     }
@@ -84,14 +82,12 @@ Be fair - many candidates have relevant but not perfect experience.`
     const fitScore = Math.min(100, Math.max(0, data.fitScore || 60))
     const atsMatch = calculateAtsMatch(resume, jobDescription)
 
-    // Success probability - more balanced
     const successProbability = 
       fitScore >= 80 ? 70 + Math.random() * 15 :
       fitScore >= 65 ? 50 + Math.random() * 20 :
       fitScore >= 50 ? 35 + Math.random() * 20 :
       20 + Math.random() * 15
 
-    // Tailor worth - only if it makes sense
     let tailorWorth = 0
     if (fitScore >= 85) tailorWorth = 0
     else if (fitScore >= 70) tailorWorth = 10
@@ -104,15 +100,31 @@ Be fair - many candidates have relevant but not perfect experience.`
       fitScore >= 55 ? "Moderate Fit" :
       "Weak Fit"
 
+    // Clean all text before returning
+    const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
+      .map((s: string) => cleanText(String(s)))
+      .filter(s => s.length > 0)
+      .slice(0, 4)
+
+    const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
+      .map((g: string) => cleanText(String(g)))
+      .filter(g => g.length > 0)
+      .slice(0, 4)
+
+    const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
+      .map((k: string) => cleanText(String(k)))
+      .filter(k => k.length > 0)
+      .slice(0, 5)
+
     return NextResponse.json({
       verdict,
       fitScore: Math.round(fitScore),
       atsMatch: Math.round(atsMatch),
       successProbability: Math.round(successProbability),
       tailorWorth: Math.round(Math.max(0, tailorWorth)),
-      strengths: (data.strengths || []).slice(0, 4),
-      gaps: (data.gaps || []).slice(0, 4),
-      missingKeywords: (data.missingKeywords || []).slice(0, 5),
+      strengths,
+      gaps,
+      missingKeywords: keywords,
     })
   } catch (error) {
     console.error("Assess error:", error)
