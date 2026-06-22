@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -301,15 +301,15 @@ export default function Assessment() {
               <div className="pt-3 border-t-2 border-green-300">
                 {result.fitScore >= 75 ? (
                   <div className="bg-green-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-green-800">✓ APPLY: Strong match with your qualifications</p>
+                    <p className="text-sm font-bold text-green-800">âœ“ APPLY: Strong match with your qualifications</p>
                   </div>
                 ) : result.fitScore >= 50 ? (
                   <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-yellow-800">⚠ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
+                    <p className="text-sm font-bold text-yellow-800">âš  APPLY WITH TAILORING: Moderate match - optimize your materials</p>
                   </div>
                 ) : (
                   <div className="bg-red-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-red-800">✗ RISKY: Weak match - significant skill gaps</p>
+                    <p className="text-sm font-bold text-red-800">âœ— RISKY: Weak match - significant skill gaps</p>
                   </div>
                 )}
               </div>
@@ -326,7 +326,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.strengths || []).map((s, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-green-600 mr-2">✓</span>
+                        <span className="text-green-600 mr-2">âœ“</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -337,7 +337,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.gaps || []).map((g, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-red-600 mr-2">→</span>
+                        <span className="text-red-600 mr-2">â†’</span>
                         <span>{g}</span>
                       </li>
                     ))}
@@ -357,7 +357,7 @@ export default function Assessment() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-blue-600 mb-4">📄 Cover Letter</h3>
+                <h3 className="text-lg font-bold text-blue-600 mb-4">ðŸ“„ Cover Letter</h3>
                 {coverLetter ? (
                   <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
@@ -366,7 +366,7 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-green-600 mb-4">📋 Tailor Resume</h3>
+                <h3 className="text-lg font-bold text-green-600 mb-4">ðŸ“‹ Tailor Resume</h3>
                 {tailoredResume ? (
                   <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
@@ -377,7 +377,7 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-purple-600 mb-4">💼 LinkedIn</h3>
+                <h3 className="text-lg font-bold text-purple-600 mb-4">ðŸ’¼ LinkedIn</h3>
                 {linkedInMessage ? (
                   <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
