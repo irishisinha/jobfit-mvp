@@ -102,17 +102,17 @@ Score 0-100. Respond ONLY with JSON (no markdown):
 
     // Clean all text before returning
     const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
-      .map((s: string) => cleanText(String(s)))
+      .map((s: any) => cleanText(String(s)))
       .filter(s => s.length > 0)
       .slice(0, 4)
 
     const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
-      .map((g: string) => cleanText(String(g)))
+      .map((g: any) => cleanText(String(g)))
       .filter(g => g.length > 0)
       .slice(0, 4)
 
     const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
-      .map((k: string) => cleanText(String(k)))
+      .map((k: any) => cleanText(String(k)))
       .filter(k => k.length > 0)
       .slice(0, 5)
 
