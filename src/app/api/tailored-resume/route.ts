@@ -1,61 +1,82 @@
-﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "../../../lib/auth"
+import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
+import { authOptions } from "../../../lib/auth"
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { resume, jobDescription, jobTitle, company, tailorWorth } = await req.json()
+
+    if (!resume?.trim() || !jobDescription?.trim() || !tailorWorth) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const { resume, jobDescription, jobTitle, company } = await req.json()
-
-    if (!resume?.trim() || !jobDescription?.trim()) {
-      return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
+    // Don't generate if tailor worth is too low
+    if (tailorWorth < 5) {
+      return NextResponse.json({ 
+        resume: "Resume is already well-matched. Minimal tailoring needed.",
+        changes: "No significant changes recommended."
+      })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      max_tokens: 2500,
       messages: [{
         role: "user",
-        content: `Rewrite this resume to optimize for the job. Keep ALL information truthful.
+        content: `You are a resume expert. Take this resume and tailor it for this job by REORDERING and REEMPHASIZING existing content only. Never add false information.
 
 ORIGINAL RESUME:
-${resume.substring(0, 1200)}
+${resume.substring(0, 1500)}
 
 TARGET JOB: ${jobTitle} at ${company}
+JOB DESCRIPTION:
+${jobDescription.substring(0, 1000)}
 
-REQUIREMENTS:
-${jobDescription.substring(0, 800)}
+Instructions:
+1. Keep ONLY skills and experience from the original resume
+2. Reorder sections to emphasize what matches this role
+3. Rephrase bullet points to use keywords from the job posting
+4. Remove or downplay irrelevant experience
+5. Keep all information TRUTHFUL
 
-REWRITE INSTRUCTIONS:
-1. Keep every fact from the original (NO LIES)
-2. Reorganize to highlight matching skills FIRST
-3. Use stronger action verbs
-4. Reorder bullets by job relevance
-5. Keep same structure and format
-6. Return COMPLETE rewritten resume
+Return ONLY this format:
+TAILORED RESUME:
+[Full tailored resume here - keep same structure]
 
-START REWRITTEN RESUME:`
+KEY CHANGES:
+- Moved X to top to match role focus
+- Reworded Y to use industry language
+- Emphasized Z which directly matches requirement`,
       }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 2000,
     })
 
-    let content = completion.choices[0]?.message?.content || ""
+    const content = completion.choices[0]?.message?.content || ""
+    
+    // Extract sections
+    const resumeMatch = content.match(/TAILORED RESUME:([\s\S]*?)(?:KEY CHANGES:|$)/)
+    const changesMatch = content.match(/KEY CHANGES:([\s\S]*)/)
 
-    if (!content || content.length < 50) {
-      content = resume
-    }
+    const tailoredResume = resumeMatch ? resumeMatch[1].trim() : "Unable to tailor - check your inputs"
+    const changes = changesMatch ? changesMatch[1].trim() : "Resume reordered to emphasize matching skills"
 
-    return NextResponse.json({ tailoredResume: content })
+    return NextResponse.json({
+      resume: tailoredResume,
+      changes: changes
+    })
   } catch (error) {
-    console.error("Tailored resume error:", error)
-    return NextResponse.json({ tailoredResume: "" })
+    console.error("Error:", error)
+    return NextResponse.json({ 
+      resume: "Error generating tailored resume",
+      changes: "Please try again"
+    }, { status: 500 })
   }
 }
