@@ -1,6 +1,10 @@
 ﻿import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 
+declare global {
+  var assessments: any[]
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession()
