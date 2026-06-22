@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     if (!global.assessments) global.assessments = []
-    const userAssessments = global.assessments.filter((a: any) => a.userEmail === session.user.email)
+    const userEmail = session.user.email
+    const userAssessments = global.assessments.filter((a: any) => a.userEmail === userEmail)
 
     return NextResponse.json(userAssessments.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
   } catch (err) {
