@@ -57,7 +57,7 @@ Return ONLY the cover letter text, no headers.`
       return NextResponse.json({ error: "Empty response from Groq" }, { status: 500 })
     }
 
-    return NextResponse.json({ coverLetter: content })
+    return NextResponse.json({ coverLetter: cleanText(completion.choices[0]?.message?.content || "") })
   } catch (error) {
     console.error("Cover letter error:", error)
     return NextResponse.json({

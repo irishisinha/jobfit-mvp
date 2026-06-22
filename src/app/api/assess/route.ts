@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
@@ -60,6 +60,11 @@ Rules: Only real skills from resume. Return JSON only.`
       ? data.verdict 
       : fitScore >= 75 ? "Strong Fit" : fitScore >= 50 ? "Moderate Fit" : "Weak Fit"
 
+    const cleanArray = (arr: any[]) => {
+      if (!Array.isArray(arr)) return []
+      return arr.map(item => String(item).replace(/[^ -~]/g, "").trim()).filter(item => item.length > 0)
+    }
+
     const tailorWorth = calculateTailorWorth(fitScore)
 
     return NextResponse.json({
@@ -86,3 +91,4 @@ Rules: Only real skills from resume. Return JSON only.`
     })
   }
 }
+
