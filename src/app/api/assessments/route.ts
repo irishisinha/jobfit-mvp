@@ -1,9 +1,8 @@
-﻿import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
+import { PrismaClient } from "@prisma/client"
 
-declare global {
-  var assessments: any[]
-}
+const prisma = new PrismaClient()
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,31 +11,36 @@ export async function POST(req: NextRequest) {
 
     const { jobTitle, company, jobDescription, verdict, fitScore, atsMatch, successProbability, tailorWorth, strengths, gaps, missingKeywords, selectedResume } = await req.json()
 
-    const assessment = {
-      id: Date.now().toString(),
-      userEmail: session.user.email,
-      jobTitle,
-      company,
-      jobDescription,
-      verdict,
-      fitScore,
-      atsMatch,
-      successProbability,
-      tailorWorth,
-      strengths,
-      gaps,
-      missingKeywords,
-      selectedResume,
-      createdAt: new Date().toISOString(),
-    }
+    // Find or create user
+    const user = await prisma.user.upsert({
+      where: { email: session.user.email },
+      update: {},
+      create: { email: session.user.email, name: session.user.name || "" },
+    })
 
-    if (!global.assessments) global.assessments = []
-    global.assessments.push(assessment)
+    const assessment = await prisma.assessment.create({
+      data: {
+        userId: user.id,
+        jobTitle,
+        company,
+        jobDescription,
+        verdict,
+        fitScore,
+        atsMatch,
+        successProbability,
+        tailorWorth,
+        strengths: strengths || [],
+        gaps: gaps || [],
+        missingKeywords: missingKeywords || [],
+      },
+    })
 
     return NextResponse.json({ success: true, id: assessment.id })
   } catch (err) {
     console.error("Error:", err)
-    return NextResponse.json({ error: "Failed to save" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to save assessment" }, { status: 500 })
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
@@ -45,13 +49,23 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession()
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    if (!global.assessments) global.assessments = []
-    const userEmail = session.user.email
-    const userAssessments = global.assessments.filter((a: any) => a.userEmail === userEmail)
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    })
 
-    return NextResponse.json(userAssessments.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    if (!user) return NextResponse.json([])
+
+    const assessments = await prisma.assessment.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    })
+
+    return NextResponse.json(assessments)
   } catch (err) {
     console.error("Error:", err)
-    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch assessments" }, { status: 500 })
+  } finally {
+    await prisma.$disconnect()
   }
 }
