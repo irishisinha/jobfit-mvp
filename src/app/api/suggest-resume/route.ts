@@ -56,7 +56,7 @@ Return ONLY this JSON:
   "projectRelevance": 0-20,
   "keywordMatch": 0-10,
   "score": 0-100,
-  "reason": "one sentence"
+  "reason": "one sentence why this score"
 }
 
 STRICT: Score EACH criterion independently. Different resumes should get VERY different scores.`
@@ -75,10 +75,14 @@ STRICT: Score EACH criterion independently. Different resumes should get VERY di
             (data.keywordMatch || 0)
           ))
 
+          // Calculate tailor worth: inverse to fit score
+          const tailorWorth = Math.max(5, 100 - Math.round(score / 1.0))
+
           return {
             id: resume.id,
             name: resume.name,
             score,
+            tailorWorth,
             reason: data.reason || "Analyzed",
             breakdown: {
               skills: data.skillsMatch || 0,
@@ -92,7 +96,8 @@ STRICT: Score EACH criterion independently. Different resumes should get VERY di
           return { 
             id: resume.id, 
             name: resume.name, 
-            score: 0, 
+            score: 0,
+            tailorWorth: 95,
             reason: "Error analyzing",
             breakdown: { skills: 0, experience: 0, industry: 0, projects: 0, keywords: 0 }
           }
@@ -100,8 +105,30 @@ STRICT: Score EACH criterion independently. Different resumes should get VERY di
       })
     )
 
-    // Sort by score descending
-    const sorted = suggestions.sort((a, b) => b.score - a.score)
+    // Sort by score, but use tailor worth as tiebreaker for top 2
+    const sorted = [...suggestions].sort((a, b) => {
+      // First sort by score
+      if (Math.abs(a.score - b.score) > 0.5) {
+        return b.score - a.score
+      }
+      
+      // If scores are virtually the same (within 0.5 points), use tailor worth
+      // Lower tailor worth = better fit, needs less tailoring = prioritize
+      return a.tailorWorth - b.tailorWorth
+    })
+
+    // Add reasoning for top recommendation
+    if (sorted.length > 0) {
+      const topResume = sorted[0]
+      const secondResume = sorted[1]
+      
+      let tiebreaker = ""
+      if (secondResume && Math.abs(topResume.score - secondResume.score) <= 0.5) {
+        tiebreaker = `Both "${topResume.name}" and "${secondResume.name}" have similar fit scores (${topResume.score.toFixed(0)}% vs ${secondResume.score.toFixed(0)}%), but "${topResume.name}" has lower tailor worth (${topResume.tailorWorth}% vs ${secondResume.tailorWorth}%), meaning it requires less modification to be competitive.`
+      }
+      
+      topResume.recommendation = tiebreaker || `"${topResume.name}" is the strongest match with ${topResume.score.toFixed(0)}% fit. Tailor worth is ${topResume.tailorWorth}%, meaning you can improve it by reordering and emphasizing relevant skills.`
+    }
 
     return NextResponse.json({ suggestions: sorted })
   } catch (error) {

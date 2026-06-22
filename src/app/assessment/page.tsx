@@ -11,6 +11,8 @@ interface SavedResume {
   content: string
   createdAt: string
   matchScore?: number
+  tailorWorth?: number
+  recommendation?: string
 }
 
 interface AssessmentResult {
@@ -96,7 +98,7 @@ export default function Assessment() {
       // Map scores back to resumes
       const scored = savedResumes.map(resume => {
         const match = suggestions.find((s: any) => s.id === resume.id)
-        return { ...resume, matchScore: match?.score || 50 }
+        return { ...resume, matchScore: match?.score || 50, tailorWorth: match?.tailorWorth, recommendation: match?.recommendation }
       })
 
       // Sort by score
@@ -295,6 +297,7 @@ export default function Assessment() {
               <p className="text-sm text-green-700 font-bold mb-2">RECOMMENDED RESUME</p>
               <h2 className="text-2xl font-bold text-gray-800">{selectedResume.name}</h2>
               <p className="text-gray-600">Match Score: {selectedResume.matchScore}% for {jobTitle} at {company}</p>
+              {selectedResume.recommendation && <p className="text-sm text-green-800 mt-2 italic">{selectedResume.recommendation}</p>}
             </div>
 
             <div className="bg-white rounded-lg p-8 shadow">
@@ -317,10 +320,10 @@ export default function Assessment() {
                   <p className="text-gray-600 text-sm mb-1">Success Rate</p>
                   <p className="text-2xl font-bold text-purple-600">{result.successProbability}%</p>
                 </div>
-                <div className={`rounded-lg p-4 ${result.tailorWorth < 30 ? "bg-green-50" : "bg-orange-50"}`}>
+                <div className={`rounded-lg p-4 ${result.tailorWorth < 5 ? "bg-green-50" : result.tailorWorth < 20 ? "bg-yellow-50" : "bg-orange-50"}`}>
                   <p className="text-gray-600 text-sm mb-1">Tailor Worth</p>
-                  <p className={`text-2xl font-bold ${result.tailorWorth < 30 ? "text-green-600" : "text-orange-600"}`}>{result.tailorWorth}%</p>
-                  <p className="text-xs text-gray-600">{result.tailorWorth < 30 ? "Already optimal" : "Room to improve"}</p>
+                  <p className={`text-2xl font-bold ${result.tailorWorth < 5 ? "text-green-600" : result.tailorWorth < 20 ? "text-yellow-600" : "text-orange-600"}`}>{result.tailorWorth}%</p>
+                  <p className="text-xs text-gray-600">{result.tailorWorth < 5 ? "Perfect match" : result.tailorWorth < 20 ? "Minor improvements possible" : "Significant improvements possible"}</p>
                 </div>
               </div>
 
@@ -378,8 +381,8 @@ export default function Assessment() {
                 {tailoredResume ? (
                   <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                 ) : (
-                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 20} className={`w-full ${result.tailorWorth < 20 ? "opacity-50 cursor-not-allowed" : ""} btn-primary`}>
-                    {result.tailorWorth < 20 ? "Already Optimized" : "Generate"}
+                  <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 20 ? "opacity-50 cursor-not-allowed" : ""} btn-primary`}>
+                    {result.tailorWorth < 20 ? "Perfect Fit - No Tailoring Needed" : "Generate Tailored Resume"}
                   </button>
                 )}
               </div>
@@ -423,3 +426,5 @@ export default function Assessment() {
     </div>
   )
 }
+
+
