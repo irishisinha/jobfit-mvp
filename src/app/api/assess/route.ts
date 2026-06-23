@@ -36,16 +36,16 @@ export async function POST(req: NextRequest) {
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Analyze this resume against the job requirement. Be specific and concise.
+        content: `Analyze this resume carefully against the job requirement. Match experience even if described differently. Be specific and concise.
 
 RESUME:
-${resume.substring(0, 1500)}
+${resume.substring(0, 3500)}
 
 JOB: ${jobTitle} at ${company}
 REQUIREMENTS:
-${jobDescription.substring(0, 1200)}
+${jobDescription.substring(0, 2000)}
 
-Score 0-100. List specific strengths (skills/experience the candidate HAS that match the role). List specific gaps (what the candidate is MISSING that the role needs).
+Score 0-100. List specific strengths (skills/experience the candidate HAS that match the role). List only genuine gaps. If candidate HAS experience in area (leadership, retail, etc) even with different wording, mention it as a strength not a gap. List only true missing areas.
 
 Return ONLY valid JSON:
 {
