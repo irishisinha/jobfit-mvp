@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
               role: "user",
               content: `Score this resume for: ${jobTitle} at ${company}
 
-RESUME: ${resume.content.substring(0, 600)}
+RESUME: ${resume.content.substring(0, 2500)}
 
-JOB: ${jobDescription.substring(0, 600)}
+JOB: ${jobDescription.substring(0, 1500)}
 
 Return ONLY JSON (no markdown):
 {"score": 65}`
