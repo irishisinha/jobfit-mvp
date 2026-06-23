@@ -5,21 +5,12 @@ import Groq from "groq-sdk"
 
 export const maxDuration = 60
 
-// Remove all mojibake and non-ASCII characters
-function cleanText(text: string): string {
-  if (!text) return ""
-  return text
-    .replace(/[^\x20-\x7E\n\t]/g, "") // Keep only ASCII printable + newline/tab
-    .replace(/\s+/g, " ") // Normalize spaces
-    .trim()
-}
-
 function calculateAtsMatch(resume: string, jobDescription: string): number {
-  const jobKeywords = jobDescription.toLowerCase().split(/\W+/)
+  const jobKeywords = jobDescription.toLowerCase().split(/\W+/).filter(w => w.length > 3)
   const resumeKeywords = resume.toLowerCase().split(/\W+/)
   const resumeSet = new Set(resumeKeywords)
   
-  const matches = jobKeywords.filter((k: string) => k.length > 3 && resumeSet.has(k)).length
+  const matches = jobKeywords.filter(k => resumeSet.has(k)).length
   const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
   return Math.min(100, Math.max(20, percentage))
 }
@@ -41,30 +32,25 @@ export async function POST(req: NextRequest) {
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 1200,
+      max_tokens: 1000,
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Analyze resume for: ${jobTitle} at ${company}
+        content: `Rate this resume for: ${jobTitle}
 
-RESUME:
+RESUME (first 1200 chars):
 ${resume.substring(0, 1200)}
 
-JOB DESCRIPTION:
-${jobDescription.substring(0, 1200)}
+JOB (first 1000 chars):
+${jobDescription.substring(0, 1000)}
 
-Score 0-100. Respond ONLY with JSON (no markdown):
-{
-  "fitScore": 65,
-  "strengths": ["skill1", "skill2"],
-  "gaps": ["gap1"],
-  "missingKeywords": ["keyword1"]
-}`
+Return ONLY JSON - no other text:
+{"fitScore": 70, "strengths": ["skill1", "skill2"], "gaps": ["gap1"], "missingKeywords": ["word1"]}`
       }],
     })
 
     let content = completion.choices[0]?.message?.content || "{}"
-    content = content.replace(/```json|\n```|```/g, "").trim()
+    content = content.replace(/```[\s\S]*?```/g, "").trim()
 
     let data: any = {
       fitScore: 60,
@@ -76,10 +62,10 @@ Score 0-100. Respond ONLY with JSON (no markdown):
     try {
       data = JSON.parse(content)
     } catch (e) {
-      console.error("Parse error:", content.substring(0, 100))
+      console.error("Parse error:", e)
     }
 
-    const fitScore = Math.min(100, Math.max(0, data.fitScore || 60))
+    const fitScore = Math.min(100, Math.max(0, parseInt(String(data.fitScore)) || 60))
     const atsMatch = calculateAtsMatch(resume, jobDescription)
 
     const successProbability = 
@@ -93,35 +79,31 @@ Score 0-100. Respond ONLY with JSON (no markdown):
     else if (fitScore >= 70) tailorWorth = 10
     else if (fitScore >= 55) tailorWorth = 25
     else if (fitScore >= 40) tailorWorth = 40
-    else tailorWorth = 0
 
     const verdict = 
       fitScore >= 75 ? "Strong Fit" :
       fitScore >= 55 ? "Moderate Fit" :
       "Weak Fit"
 
-    // Clean all text before returning
+    // Simple cleanup - just take first 50 chars of each item
     const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
-      .map((s: any) => cleanText(String(s)))
-      .filter((s: string) => s.length > 0)
       .slice(0, 4)
+      .map(s => String(s).substring(0, 100))
 
     const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
-      .map((g: any) => cleanText(String(g)))
-      .filter((g: string) => g.length > 0)
       .slice(0, 4)
+      .map(g => String(g).substring(0, 100))
 
     const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
-      .map((k: any) => cleanText(String(k)))
-      .filter((k: string) => k.length > 0)
       .slice(0, 5)
+      .map(k => String(k).substring(0, 50))
 
     return NextResponse.json({
       verdict,
-      fitScore: Math.round(fitScore),
-      atsMatch: Math.round(atsMatch),
+      fitScore,
+      atsMatch,
       successProbability: Math.round(successProbability),
-      tailorWorth: Math.round(Math.max(0, tailorWorth)),
+      tailorWorth,
       strengths,
       gaps,
       missingKeywords: keywords,

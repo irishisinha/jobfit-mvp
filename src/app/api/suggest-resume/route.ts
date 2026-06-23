@@ -14,125 +14,75 @@ export async function POST(req: NextRequest) {
 
     const { jobDescription, jobTitle, company, resumes } = await req.json()
 
-    if (!jobDescription?.trim()) {
-      return NextResponse.json({ error: "Job description required" }, { status: 400 })
-    }
-
-    if (!resumes || resumes.length === 0) {
+    if (!jobDescription?.trim() || !resumes || resumes.length === 0) {
       return NextResponse.json({ suggestions: [] })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    // Score all resumes with detailed analysis
     const suggestions = await Promise.all(
       resumes.map(async (resume: any) => {
         try {
           const completion = await groq.chat.completions.create({
             model: "llama-3.1-8b-instant",
-            max_tokens: 300,
+            max_tokens: 200,
             temperature: 0,
             messages: [{
               role: "user",
-              content: `Score this resume for the job. Return ONLY JSON.
+              content: `Score this resume for: ${jobTitle} at ${company}
 
 RESUME: ${resume.content.substring(0, 600)}
 
-TARGET JOB: ${jobTitle} at ${company}
-REQUIREMENTS: ${jobDescription.substring(0, 600)}
+JOB: ${jobDescription.substring(0, 600)}
 
-Score on these SPECIFIC criteria:
-1. Skills match (0-25): Does resume have exact skills mentioned?
-2. Experience level (0-25): Is experience level appropriate?
-3. Industry/domain (0-20): Is their background relevant?
-4. Project relevance (0-20): Do projects align with job needs?
-5. Keywords present (0-10): Do key terms from JD appear?
-
-Return ONLY this JSON:
-{
-  "skillsMatch": 0-25,
-  "experienceLevel": 0-25,
-  "industryMatch": 0-20,
-  "projectRelevance": 0-20,
-  "keywordMatch": 0-10,
-  "score": 0-100,
-  "reason": "one sentence why this score"
-}
-
-STRICT: Score EACH criterion independently. Different resumes should get VERY different scores.`
+Return ONLY JSON (no markdown):
+{"score": 65}`
             }],
           })
 
-          const content = (completion.choices[0]?.message?.content || "{}").replace(/```json\n?|\n?```/g, "").trim()
-          const data = JSON.parse(content)
+          const content = (completion.choices[0]?.message?.content || "{}").replace(/```[\s\S]*?```/g, "").trim()
+          let data = { score: 60 }
           
-          // Calculate score from components
-          const score = Math.min(100, Math.max(0, 
-            (data.skillsMatch || 0) +
-            (data.experienceLevel || 0) +
-            (data.industryMatch || 0) +
-            (data.projectRelevance || 0) +
-            (data.keywordMatch || 0)
-          ))
+          try {
+            data = JSON.parse(content)
+          } catch (e) {
+            console.error("Parse error")
+          }
 
-          // Calculate tailor worth: inverse to fit score
-          const tailorWorth = Math.max(5, 100 - Math.round(score / 1.0))
+          const score = Math.min(100, Math.max(0, parseInt(String(data.score)) || 60))
+          const tailorWorth = Math.max(0, 100 - score)
 
-          return {
-            id: resume.id,
-            name: resume.name,
+          return { 
+            id: resume.id, 
+            name: resume.name, 
             score,
             tailorWorth,
-            reason: data.reason || "Analyzed",
-            breakdown: {
-              skills: data.skillsMatch || 0,
-              experience: data.experienceLevel || 0,
-              industry: data.industryMatch || 0,
-              projects: data.projectRelevance || 0,
-              keywords: data.keywordMatch || 0
-            }
+            reason: `${score}% fit`
           }
         } catch (err) {
           return { 
             id: resume.id, 
             name: resume.name, 
             score: 0,
-            tailorWorth: 95,
-            reason: "Error analyzing",
-            breakdown: { skills: 0, experience: 0, industry: 0, projects: 0, keywords: 0 }
+            tailorWorth: 100,
+            reason: "Error analyzing"
           }
         }
       })
     )
 
-    // Sort by score, but use tailor worth as tiebreaker for top 2
-    const sorted = [...suggestions].sort((a, b) => {
-      // First sort by score
-      if (Math.abs(a.score - b.score) > 0.5) {
-        return b.score - a.score
-      }
-      
-      // If scores are virtually the same (within 0.5 points), use tailor worth
-      // Lower tailor worth = better fit, needs less tailoring = prioritize
-      return a.tailorWorth - b.tailorWorth
-    })
+    // SIMPLE: Sort by score DESCENDING - highest first
+    const sorted = [...suggestions].sort((a, b) => b.score - a.score)
 
-    // Add reasoning for top recommendation
+    // Add recommendation
     if (sorted.length > 0) {
       const topResume = sorted[0]
-      const secondResume = sorted[1]
-      
-      let tiebreaker = ""
-      if (secondResume && Math.abs(topResume.score - secondResume.score) <= 0.5) {
-        tiebreaker = `Both "${topResume.name}" and "${secondResume.name}" have similar fit scores (${topResume.score.toFixed(0)}% vs ${secondResume.score.toFixed(0)}%), but "${topResume.name}" has lower tailor worth (${topResume.tailorWorth}% vs ${secondResume.tailorWorth}%), meaning it requires less modification to be competitive.`
-      }
-      
-      topResume.recommendation = tiebreaker || `"${topResume.name}" is the strongest match with ${topResume.score.toFixed(0)}% fit. Tailor worth is ${topResume.tailorWorth}%, meaning you can improve it by reordering and emphasizing relevant skills.`
+      topResume.recommendation = `"${topResume.name}" is the best match at ${topResume.score}% fit.`
     }
 
     return NextResponse.json({ suggestions: sorted })
   } catch (error) {
-    console.error("Suggest resume error:", error)
+    console.error("Error:", error)
     return NextResponse.json({ suggestions: [] })
   }
 }

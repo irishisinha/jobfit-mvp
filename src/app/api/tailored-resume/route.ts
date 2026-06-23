@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { resume, jobDescription, jobTitle, company } = await req.json()
+    const { resume, jobDescription } = await req.json()
 
     if (!resume?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
@@ -21,26 +21,27 @@ export async function POST(req: NextRequest) {
     const completion = await groq.chat.completions.create({
       messages: [{
         role: "user",
-        content: `You are a resume expert. Take this resume and tailor it for this job.
-
-RULES:
-1. Keep all real skills and experience from original
-2. Reorder sections to put most relevant experience FIRST
-3. Rephrase bullet points to use job keywords
-4. Remove or downplay irrelevant sections
-5. Keep 100% truthful - no false information
-
-JOB: ${jobTitle} at ${company}
-${jobDescription.substring(0, 1000)}
+        content: `Create a tailored 2-page professional resume based on this:
 
 ORIGINAL RESUME:
-${resume.substring(0, 1500)}
+${resume.substring(0, 2000)}
 
-OUTPUT: Return ONLY the complete tailored resume (no explanations, no markdown, just the resume text):`,
+TARGET JOB:
+${jobDescription.substring(0, 1500)}
+
+RULES:
+1. Keep chronological order (recent first)
+2. Use all original experience/skills
+3. Rephrase to match job keywords
+4. Include: Summary, Experience, Skills, Education
+5. Make it 2 pages minimum
+6. Professional formatting with sections
+
+OUTPUT ONLY THE RESUME - NO EXPLANATIONS:`,
       }],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 3000,
+      max_tokens: 4000,
     })
 
     const tailoredResume = completion.choices[0]?.message?.content || resume
@@ -51,7 +52,7 @@ OUTPUT: Return ONLY the complete tailored resume (no explanations, no markdown, 
   } catch (error) {
     console.error("Error:", error)
     return NextResponse.json({ 
-      tailoredResume: 'Unable to generate tailored resume'
+      tailoredResume: resume
     }, { status: 500 })
   }
 }
