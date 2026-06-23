@@ -15,6 +15,8 @@ export default function Home() {
     }
   }, [status, router])
 
+  if (status === "loading") return <div className="p-8">Loading...</div>
+
   if (status === "authenticated") {
     return null
   }
