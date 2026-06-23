@@ -88,15 +88,15 @@ Return ONLY JSON - no other text:
     // Simple cleanup - just take first 50 chars of each item
     const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
       .slice(0, 4)
-      .map(s => String(s).substring(0, 100))
+      .map((s: any) => String(s).substring(0, 100))
 
     const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
       .slice(0, 4)
-      .map(g => String(g).substring(0, 100))
+      .map((g: any) => String(g).substring(0, 100))
 
     const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
       .slice(0, 5)
-      .map(k => String(k).substring(0, 50))
+      .map((k: any) => String(k).substring(0, 50))
 
     return NextResponse.json({
       verdict,
