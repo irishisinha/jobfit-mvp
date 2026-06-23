@@ -1,89 +1,82 @@
 import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "../../../lib/auth"
-
-let prisma: any
-
-async function getPrisma() {
-  if (!prisma) {
-    const { PrismaClient } = await import("@prisma/client")
-    prisma = new PrismaClient()
-  }
-  return prisma
-}
+import { PrismaClient } from "@prisma/client"
 
 export async function POST(req: NextRequest) {
+  const prisma = new PrismaClient()
+  
   try {
     const session = await getServerSession(authOptions)
+    
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const db = await getPrisma()
     const body = await req.json()
 
-    // Get or create user
-    let user = await db.user.findUnique({
-      where: { email: session.user.email }
-    })
-
-    if (!user) {
-      user = await db.user.create({
-        data: {
-          email: session.user.email,
-          name: session.user.name || ""
-        }
-      })
-    }
-
-    // Create assessment
-    const assessment = await db.assessment.create({
-      data: {
-        userId: user.id,
-        jobTitle: String(body.jobTitle || ""),
-        company: String(body.company || ""),
-        jobDescription: String(body.jobDescription || ""),
-        verdict: String(body.verdict || ""),
-        fitScore: parseInt(body.fitScore) || 50,
-        atsMatch: parseInt(body.atsMatch) || 50,
-        successProbability: parseInt(body.successProbability) || 50,
-        tailorWorth: parseInt(body.tailorWorth) || 0,
-        strengths: Array.isArray(body.strengths) ? JSON.stringify(body.strengths) : "[]",
-        gaps: Array.isArray(body.gaps) ? JSON.stringify(body.gaps) : "[]",
-        missingKeywords: Array.isArray(body.missingKeywords) ? JSON.stringify(body.missingKeywords) : "[]"
+    let user = await prisma.user.upsert({
+      where: { email: session.user.email },
+      update: {},
+      create: {
+        email: session.user.email,
+        name: session.user.name || ""
       }
     })
 
+    const data: any = {
+      resumeId: body.resumeId || null,
+      userId: user.id,
+      jobTitle: body.jobTitle || "",
+      company: body.company || "",
+      jobDescription: body.jobDescription || "",
+      verdict: body.verdict || "",
+      fitScore: parseInt(body.fitScore) || 0,
+      atsMatch: parseInt(body.atsMatch) || 0,
+      successProbability: parseInt(body.successProbability) || 0,
+      tailorWorth: parseInt(body.tailorWorth) || 0,
+      strengths: JSON.stringify(body.strengths || []),
+      gaps: JSON.stringify(body.gaps || []),
+      missingKeywords: JSON.stringify(body.missingKeywords || [])
+    }
+
+    const assessment = await prisma.assessment.create({ data })
+
+    await prisma.$disconnect()
     return NextResponse.json({ success: true, id: assessment.id })
   } catch (error: any) {
-    console.error("POST Error:", error)
-    return NextResponse.json({ error: error.message || "Failed to save" }, { status: 500 })
+    await prisma.$disconnect()
+    console.error("Error:", error.message)
+    return NextResponse.json({ 
+      error: error.message || "Failed"
+    }, { status: 500 })
   }
 }
 
 export async function GET(req: NextRequest) {
+  const prisma = new PrismaClient()
+  
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+      return NextResponse.json([])
     }
 
-    const db = await getPrisma()
-
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
 
     if (!user) {
+      await prisma.$disconnect()
       return NextResponse.json([])
     }
 
-    const assessments = await db.assessment.findMany({
+    const assessments = await prisma.assessment.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" }
     })
 
-    // Parse JSON fields
+    await prisma.$disconnect()
     return NextResponse.json(assessments.map((a: any) => ({
       ...a,
       strengths: tryParse(a.strengths),
@@ -91,19 +84,16 @@ export async function GET(req: NextRequest) {
       missingKeywords: tryParse(a.missingKeywords)
     })))
   } catch (error: any) {
+    await prisma.$disconnect()
     console.error("GET Error:", error)
-    return NextResponse.json({ error: error.message || "Failed to load" }, { status: 500 })
+    return NextResponse.json([])
   }
 }
 
-function tryParse(val: any) {
-  if (!val) return []
-  if (typeof val === "string") {
-    try {
-      return JSON.parse(val)
-    } catch {
-      return []
-    }
+function tryParse(json: string) {
+  try {
+    return JSON.parse(json)
+  } catch {
+    return []
   }
-  return Array.isArray(val) ? val : []
 }

@@ -148,33 +148,44 @@ export default function Assessment() {
       const assessRes = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: topResume.content, jobDescription, jobTitle, company , tone: coverLetterTone,
-        }),
+        body: JSON.stringify({ resume: topResume.content, jobDescription, jobTitle: extractedTitle, company: extractedCompany, tone: coverLetterTone }),
       })
 
       if (!assessRes.ok) throw new Error("Assessment failed")
       const assessData = await assessRes.json()
       setResult(assessData)
       
-       await fetch("/api/assessments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobTitle: extractedTitle,
-          company: extractedCompany,
-          jobDescription,
-          verdict: assessData.verdict,
-          fitScore: assessData.fitScore,
-          atsMatch: assessData.atsMatch,
-          successProbability: assessData.successProbability,
-          tailorWorth: assessData.tailorWorth,
-          strengths: assessData.strengths,
-          gaps: assessData.gaps,
-          missingKeywords: assessData.missingKeywords,
-          selectedResume: topResume.name,
-        }),
-      }).catch(() => {})
-      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedTitle, company: extractedCompany, jobDescription, verdict: assessData.verdict, fitScore: assessData.fitScore, atsMatch: assessData.atsMatch, successProbability: assessData.successProbability, tailorWorth: assessData.tailorWorth, strengths: assessData.strengths, gaps: assessData.gaps, missingKeywords: assessData.missingKeywords, selectedResume: topResume.name, status: "not-applied", createdAt: new Date().toISOString() })
+       try {
+        const saveRes = await fetch("/api/assessments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobTitle: extractedTitle,
+            company: extractedCompany,
+            jobDescription,
+            verdict: assessData.verdict,
+            fitScore: assessData.fitScore,
+            atsMatch: assessData.atsMatch,
+            successProbability: assessData.successProbability,
+            tailorWorth: assessData.tailorWorth,
+            strengths: assessData.strengths,
+            gaps: assessData.gaps,
+            missingKeywords: assessData.missingKeywords,
+            resumeId: topResume.id,
+            selectedResume: topResume.name,
+          }),
+        })
+        if (!saveRes.ok) {
+          const errData = await saveRes.json()
+          console.error("Assessment save error:", errData)
+        } else {
+          console.log("Assessment saved successfully")
+        }
+      } catch (err) {
+        console.error("Assessment save failed:", err)
+      }
+      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedTitle, company: extractedCompany, jobDescription, verdict: assessData.verdict, fitScore: assessData.fitScore, atsMatch: assessData.atsMatch, successProbability: assessData.successProbability, tailorWorth: assessData.tailorWorth, strengths: assessData.strengths, gaps: assessData.gaps, missingKeywords: assessData.missingKeywords, resumeId: topResume.id,
+            selectedResume: topResume.name, status: "not-applied", createdAt: new Date().toISOString() })
     } catch (err) {
       setError("Failed to analyze job and resumes")
       setStep("input")
@@ -202,25 +213,37 @@ export default function Assessment() {
       const data = await res.json()
       setResult(data)
       
-      await fetch("/api/assessments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobTitle: extractedJobTitle,
-          company: extractedCompany,
-          jobDescription,
-          verdict: data.verdict,
-          fitScore: data.fitScore,
-          atsMatch: data.atsMatch,
-          successProbability: data.successProbability,
-          tailorWorth: data.tailorWorth,
-          strengths: data.strengths,
-          gaps: data.gaps,
-          missingKeywords: data.missingKeywords,
-          selectedResume: resume.name,
-        }),
-      }).catch(() => {})
-      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedJobTitle, company: extractedCompany, jobDescription, verdict: data.verdict, fitScore: data.fitScore, atsMatch: data.atsMatch, successProbability: data.successProbability, tailorWorth: data.tailorWorth, strengths: data.strengths, gaps: data.gaps, missingKeywords: data.missingKeywords, selectedResume: resume.name, status: "not-applied", createdAt: new Date().toISOString() })
+       try {
+        const saveRes = await fetch("/api/assessments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobTitle: extractedJobTitle,
+            company: extractedCompany,
+            jobDescription,
+            verdict: data.verdict,
+            fitScore: data.fitScore,
+            atsMatch: data.atsMatch,
+            successProbability: data.successProbability,
+            tailorWorth: data.tailorWorth,
+            strengths: data.strengths,
+            gaps: data.gaps,
+            missingKeywords: data.missingKeywords,
+            resumeId: resume.id,
+            selectedResume: resume.name,
+          }),
+        })
+        if (!saveRes.ok) {
+          const errData = await saveRes.json()
+          console.error("Assessment save error:", errData)
+        } else {
+          console.log("Assessment saved successfully")
+        }
+      } catch (err) {
+        console.error("Assessment save failed:", err)
+      }
+      saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedJobTitle, company: extractedCompany, jobDescription, verdict: data.verdict, fitScore: data.fitScore, atsMatch: data.atsMatch, successProbability: data.successProbability, tailorWorth: data.tailorWorth, strengths: data.strengths, gaps: data.gaps, missingKeywords: data.missingKeywords, resumeId: resume.id,
+            selectedResume: resume.name, status: "not-applied", createdAt: new Date().toISOString() })
     } catch (err) {
       setError("Failed to assess this resume")
     } finally {
@@ -276,8 +299,9 @@ export default function Assessment() {
     }
   }
 
-  if (status === "loading") return <div className="p-8">Loading...</div>
-  if (!session) return null
+  if (status === "loading") return <div className="p-8 text-center"><p>Loading assessment...</p></div>
+  if (status === "unauthenticated") return <div className="p-8 text-center"><p>Please sign in</p></div>
+  if (!session) return <div className="p-8 text-center"><p>Initializing...</p></div>
 
   
   const downloadDocx = async (content: string, filename: string) => {
@@ -406,9 +430,7 @@ export default function Assessment() {
                 )}
               </div>
 
-              {selectedResume.recommendation && (
-                <p className="text-sm text-green-800 italic pt-2 border-t border-green-200">{selectedResume.recommendation}</p>
-              )}
+
             </div>
 
             <div className="bg-white rounded-lg p-8 shadow">
