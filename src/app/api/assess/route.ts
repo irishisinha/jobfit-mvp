@@ -10,7 +10,7 @@ function calculateAtsMatch(resume: string, jobDescription: string): number {
   const resumeKeywords = resume.toLowerCase().split(/\W+/)
   const resumeSet = new Set(resumeKeywords)
   
-  const matches = jobKeywords.filter(k => resumeSet.has(k)).length
+  const matches = jobKeywords.filter((k: string) => resumeSet.has(k)).length
   const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
   return Math.min(100, Math.max(20, percentage))
 }
@@ -97,17 +97,17 @@ Return ONLY valid JSON:
     const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
       .slice(0, 4)
       .map((s: any) => String(s).trim())
-      .filter(s => s.length > 0)
+      .filter((s: string) => s.length > 0)
 
     const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
       .slice(0, 4)
       .map((g: any) => String(g).trim())
-      .filter(g => g.length > 0)
+      .filter((g: string) => g.length > 0)
 
     const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
       .slice(0, 5)
       .map((k: any) => String(k).trim())
-      .filter(k => k.length > 0)
+      .filter((k: string) => k.length > 0)
 
     return NextResponse.json({
       verdict,
