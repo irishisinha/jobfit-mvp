@@ -393,15 +393,15 @@ export default function Assessment() {
               <div className="pt-3 border-t-2 border-green-300">
                 {result.fitScore >= 75 ? (
                   <div className="bg-green-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-green-800">Ã¢Å“'œ APPLY: Strong match with your qualifications</p>
+                    <p className="text-sm font-bold text-green-800">✓ APPLY: Strong match with your qualifications</p>
                   </div>
                 ) : result.fitScore >= 50 ? (
                   <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-yellow-800">⚡  APPLY WITH TAILORING: Moderate match - optimize your materials</p>
+                    <p className="text-sm font-bold text-yellow-800">⚡ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
                   </div>
                 ) : (
                   <div className="bg-red-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-red-800">Ã¢Å“'” RISKY: Weak match - significant skill gaps</p>
+                    <p className="text-sm font-bold text-red-800">❌ RISKY: Weak match - significant skill gaps</p>
                   </div>
                 )}
               </div>
@@ -418,7 +418,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.strengths || []).map((s, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-green-600 mr-2">Ã¢Å“'œ</span>
+                        <span className="text-green-600 mr-2">✓</span>
                         <span>{s}</span>
                       </li>
                     ))}
