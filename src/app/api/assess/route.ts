@@ -36,14 +36,25 @@ export async function POST(req: NextRequest) {
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Rate resume for: ${jobTitle} at ${company}
+        content: `Analyze resume match for: ${jobTitle} at ${company}
 
-RESUME: ${resume.substring(0, 3500)}
+CANDIDATE RESUME:
+${resume.substring(0, 3500)}
 
-JOB REQUIREMENTS: ${jobDescription.substring(0, 2000)}
+REQUIRED SKILLS AND EXPERIENCE:
+${jobDescription.substring(0, 2000)}
 
-Return ONLY JSON (no markdown, no extra text):
-{"fitScore": 70, "strengths": ["strength1", "strength2"], "gaps": ["gap1", "gap2"], "missingKeywords": ["keyword1"]}`
+Scoring: 0-100 based on how well the resume matches the job requirements.
+- 90-100: Has almost all requirements with strong experience
+- 75-89: Has core requirements with relevant experience
+- 60-74: Has some requirements, missing some key skills
+- 40-59: Significant gaps, would need substantial learning
+- Below 40: Poor match
+
+Respond ONLY with a JSON object. Analyze carefully and score accurately based on the specific resume and job.
+
+Example format (replace values):
+{"fitScore": 75, "strengths": ["specific skill from resume"], "gaps": ["missing skill"], "missingKeywords": ["keyword"]}`
       }],
     })
 
@@ -53,24 +64,24 @@ Return ONLY JSON (no markdown, no extra text):
     content = content.replace(/```json\n?|\n?```/g, "").replace(/^```|```$/g, "").trim()
 
     let data: any = {
-      fitScore: 60,
-      strengths: ["Unable to extract strengths"],
-      gaps: ["Unable to extract gaps"],
+      fitScore: 50,
+      strengths: [],
+      gaps: [],
       missingKeywords: []
     }
 
     // Try to parse JSON
     try {
       const parsed = JSON.parse(content)
-      if (parsed.fitScore) data.fitScore = parsed.fitScore
-      if (Array.isArray(parsed.strengths) && parsed.strengths.length > 0) data.strengths = parsed.strengths
-      if (Array.isArray(parsed.gaps) && parsed.gaps.length > 0) data.gaps = parsed.gaps
-      if (Array.isArray(parsed.missingKeywords) && parsed.missingKeywords.length > 0) data.missingKeywords = parsed.missingKeywords
+      if (typeof parsed.fitScore === "number") data.fitScore = parsed.fitScore
+      if (Array.isArray(parsed.strengths)) data.strengths = parsed.strengths.filter((s: any) => s)
+      if (Array.isArray(parsed.gaps)) data.gaps = parsed.gaps.filter((g: any) => g)
+      if (Array.isArray(parsed.missingKeywords)) data.missingKeywords = parsed.missingKeywords.filter((k: any) => k)
     } catch (e) {
-      console.error("Parse failed, raw content:", content.substring(0, 200))
+      console.error("Parse failed, raw:", content.substring(0, 300))
     }
 
-    const fitScore = Math.min(100, Math.max(0, parseInt(String(data.fitScore)) || 60))
+    const fitScore = Math.min(100, Math.max(0, data.fitScore))
     const atsMatch = calculateAtsMatch(resume, jobDescription)
 
     const successProbability = 
@@ -96,15 +107,15 @@ Return ONLY JSON (no markdown, no extra text):
       atsMatch,
       successProbability: Math.round(successProbability),
       tailorWorth,
-      strengths: data.strengths || [],
-      gaps: data.gaps || [],
-      missingKeywords: data.missingKeywords || [],
+      strengths: data.strengths,
+      gaps: data.gaps,
+      missingKeywords: data.missingKeywords,
     })
   } catch (error: any) {
     console.error("Assess error:", error)
     return NextResponse.json({
       verdict: "Moderate Fit",
-      fitScore: 60,
+      fitScore: 50,
       atsMatch: 50,
       successProbability: 50,
       tailorWorth: 25,
