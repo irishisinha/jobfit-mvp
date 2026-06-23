@@ -32,20 +32,28 @@ export async function POST(req: NextRequest) {
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 1000,
+      max_tokens: 1200,
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Rate this resume for: ${jobTitle}
+        content: `Analyze this resume against the job requirement. Be specific and concise.
 
-RESUME (first 1200 chars):
-${resume.substring(0, 1200)}
+RESUME:
+${resume.substring(0, 1500)}
 
-JOB (first 1000 chars):
-${jobDescription.substring(0, 1000)}
+JOB: ${jobTitle} at ${company}
+REQUIREMENTS:
+${jobDescription.substring(0, 1200)}
 
-Return ONLY JSON - no other text:
-{"fitScore": 70, "strengths": ["skill1", "skill2"], "gaps": ["gap1"], "missingKeywords": ["word1"]}`
+Score 0-100. List specific strengths (skills/experience the candidate HAS that match the role). List specific gaps (what the candidate is MISSING that the role needs).
+
+Return ONLY valid JSON:
+{
+  "fitScore": 70,
+  "strengths": ["has 10+ years ecommerce", "proven P&L management"],
+  "gaps": ["no retail industry experience", "missing team leadership background"],
+  "missingKeywords": ["keyword1", "keyword2"]
+}`
       }],
     })
 
@@ -85,18 +93,21 @@ Return ONLY JSON - no other text:
       fitScore >= 55 ? "Moderate Fit" :
       "Weak Fit"
 
-    // Simple cleanup - just take first 50 chars of each item
+    // Format arrays - allow longer text for gaps/strengths
     const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
       .slice(0, 4)
-      .map((s: any) => String(s).substring(0, 100))
+      .map((s: any) => String(s).trim())
+      .filter(s => s.length > 0)
 
     const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
       .slice(0, 4)
-      .map((g: any) => String(g).substring(0, 100))
+      .map((g: any) => String(g).trim())
+      .filter(g => g.length > 0)
 
     const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
       .slice(0, 5)
-      .map((k: any) => String(k).substring(0, 50))
+      .map((k: any) => String(k).trim())
+      .filter(k => k.length > 0)
 
     return NextResponse.json({
       verdict,
@@ -108,7 +119,7 @@ Return ONLY JSON - no other text:
       gaps,
       missingKeywords: keywords,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Assess error:", error)
     return NextResponse.json({
       verdict: "Moderate Fit",
