@@ -19,7 +19,7 @@ function calculateAtsMatch(resume: string, jobDescription: string): number {
   const resumeKeywords = resume.toLowerCase().split(/\W+/)
   const resumeSet = new Set(resumeKeywords)
   
-  const matches = jobKeywords.filter(k => k.length > 3 && resumeSet.has(k)).length
+  const matches = jobKeywords.filter((k: string) => k.length > 3 && resumeSet.has(k)).length
   const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
   return Math.min(100, Math.max(20, percentage))
 }
@@ -103,17 +103,17 @@ Score 0-100. Respond ONLY with JSON (no markdown):
     // Clean all text before returning
     const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
       .map((s: any) => cleanText(String(s)))
-      .filter(s => s.length > 0)
+      .filter((s: string) => s.length > 0)
       .slice(0, 4)
 
     const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
       .map((g: any) => cleanText(String(g)))
-      .filter(g => g.length > 0)
+      .filter((g: string) => g.length > 0)
       .slice(0, 4)
 
     const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
       .map((k: any) => cleanText(String(k)))
-      .filter(k => k.length > 0)
+      .filter((k: string) => k.length > 0)
       .slice(0, 5)
 
     return NextResponse.json({
