@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -397,7 +397,7 @@ export default function Assessment() {
                   </div>
                 ) : result.fitScore >= 50 ? (
                   <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-yellow-800">Ã¢Å¡  APPLY WITH TAILORING: Moderate match - optimize your materials</p>
+                    <p className="text-sm font-bold text-yellow-800">⚡  APPLY WITH TAILORING: Moderate match - optimize your materials</p>
                   </div>
                 ) : (
                   <div className="bg-red-100 rounded-lg p-3 mb-3">
@@ -429,7 +429,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.gaps || []).map((g, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-red-600 mr-2">— '™</span>
+                        <span className="text-red-600 mr-2">— '</span>
                         <span>{g}</span>
                       </li>
                     ))}
