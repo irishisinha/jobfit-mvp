@@ -51,7 +51,7 @@ OUTPUT: Return ONLY the complete tailored resume (no explanations, no markdown, 
   } catch (error) {
     console.error("Error:", error)
     return NextResponse.json({ 
-      tailoredResume: resume
+      tailoredResume: 'Unable to generate tailored resume'
     }, { status: 500 })
   }
 }
