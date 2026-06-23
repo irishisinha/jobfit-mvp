@@ -10,7 +10,7 @@ function calculateAtsMatch(resume: string, jobDescription: string): number {
   const resumeKeywords = resume.toLowerCase().split(/\W+/)
   const resumeSet = new Set(resumeKeywords)
   
-  const matches = jobKeywords.filter((k: string) => resumeSet.has(k)).length
+  const matches = jobKeywords.filter(k => resumeSet.has(k)).length
   const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
   return Math.min(100, Math.max(20, percentage))
 }
@@ -32,45 +32,42 @@ export async function POST(req: NextRequest) {
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 1200,
+      max_tokens: 1500,
       temperature: 0,
       messages: [{
         role: "user",
-        content: `Analyze this resume carefully against the job requirement. Match experience even if described differently. Be specific and concise.
+        content: `Rate resume for: ${jobTitle} at ${company}
 
-RESUME:
-${resume.substring(0, 3500)}
+RESUME: ${resume.substring(0, 3500)}
 
-JOB: ${jobTitle} at ${company}
-REQUIREMENTS:
-${jobDescription.substring(0, 2000)}
+JOB REQUIREMENTS: ${jobDescription.substring(0, 2000)}
 
-Score 0-100. List specific strengths (skills/experience the candidate HAS that match the role). List only genuine gaps. If candidate HAS experience in area (leadership, retail, etc) even with different wording, mention it as a strength not a gap. List only true missing areas.
-
-Return ONLY valid JSON:
-{
-  "fitScore": 70,
-  "strengths": ["has 10+ years ecommerce", "proven P&L management"],
-  "gaps": ["no retail industry experience", "missing team leadership background"],
-  "missingKeywords": ["keyword1", "keyword2"]
-}`
+Return ONLY JSON (no markdown, no extra text):
+{"fitScore": 70, "strengths": ["strength1", "strength2"], "gaps": ["gap1", "gap2"], "missingKeywords": ["keyword1"]}`
       }],
     })
 
-    let content = completion.choices[0]?.message?.content || "{}"
-    content = content.replace(/```[\s\S]*?```/g, "").trim()
+    let content = completion.choices[0]?.message?.content || ""
+    
+    // Clean up response
+    content = content.replace(/```json\n?|\n?```/g, "").replace(/^```|```$/g, "").trim()
 
     let data: any = {
       fitScore: 60,
-      strengths: [],
-      gaps: [],
+      strengths: ["Unable to extract strengths"],
+      gaps: ["Unable to extract gaps"],
       missingKeywords: []
     }
 
+    // Try to parse JSON
     try {
-      data = JSON.parse(content)
+      const parsed = JSON.parse(content)
+      if (parsed.fitScore) data.fitScore = parsed.fitScore
+      if (Array.isArray(parsed.strengths) && parsed.strengths.length > 0) data.strengths = parsed.strengths
+      if (Array.isArray(parsed.gaps) && parsed.gaps.length > 0) data.gaps = parsed.gaps
+      if (Array.isArray(parsed.missingKeywords) && parsed.missingKeywords.length > 0) data.missingKeywords = parsed.missingKeywords
     } catch (e) {
-      console.error("Parse error:", e)
+      console.error("Parse failed, raw content:", content.substring(0, 200))
     }
 
     const fitScore = Math.min(100, Math.max(0, parseInt(String(data.fitScore)) || 60))
@@ -93,31 +90,15 @@ Return ONLY valid JSON:
       fitScore >= 55 ? "Moderate Fit" :
       "Weak Fit"
 
-    // Format arrays - allow longer text for gaps/strengths
-    const strengths = (Array.isArray(data.strengths) ? data.strengths : [])
-      .slice(0, 4)
-      .map((s: any) => String(s).trim())
-      .filter((s: string) => s.length > 0)
-
-    const gaps = (Array.isArray(data.gaps) ? data.gaps : [])
-      .slice(0, 4)
-      .map((g: any) => String(g).trim())
-      .filter((g: string) => g.length > 0)
-
-    const keywords = (Array.isArray(data.missingKeywords) ? data.missingKeywords : [])
-      .slice(0, 5)
-      .map((k: any) => String(k).trim())
-      .filter((k: string) => k.length > 0)
-
     return NextResponse.json({
       verdict,
       fitScore,
       atsMatch,
       successProbability: Math.round(successProbability),
       tailorWorth,
-      strengths,
-      gaps,
-      missingKeywords: keywords,
+      strengths: data.strengths || [],
+      gaps: data.gaps || [],
+      missingKeywords: data.missingKeywords || [],
     })
   } catch (error: any) {
     console.error("Assess error:", error)
