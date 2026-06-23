@@ -52,7 +52,7 @@ OUTPUT ONLY THE RESUME - NO EXPLANATIONS:`,
   } catch (error) {
     console.error("Error:", error)
     return NextResponse.json({ 
-      tailoredResume: resume
+      tailoredResume: 'Unable to generate tailored resume'
     }, { status: 500 })
   }
 }
