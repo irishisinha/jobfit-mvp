@@ -1,17 +1,18 @@
 import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { PrismaClient } from "@prisma/client"
+import { authOptions } from "../../../lib/auth"
 
 const prisma = new PrismaClient()
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { jobTitle, company, jobDescription, verdict, fitScore, atsMatch, successProbability, tailorWorth, strengths, gaps, missingKeywords, selectedResume } = await req.json()
+    const body = await req.json()
+    const { jobTitle, company, jobDescription, verdict, fitScore, atsMatch, successProbability, tailorWorth, strengths, gaps, missingKeywords } = body
 
-    // Find or create user
     const user = await prisma.user.upsert({
       where: { email: session.user.email },
       update: {},
@@ -21,24 +22,24 @@ export async function POST(req: NextRequest) {
     const assessment = await prisma.assessment.create({
       data: {
         userId: user.id,
-        jobTitle,
-        company,
-        jobDescription,
-        verdict,
-        fitScore,
-        atsMatch,
-        successProbability,
-        tailorWorth,
-        strengths: strengths || [],
-        gaps: gaps || [],
-        missingKeywords: missingKeywords || [],
+        jobTitle: String(jobTitle),
+        company: String(company),
+        jobDescription: String(jobDescription),
+        verdict: String(verdict),
+        fitScore: Number(fitScore),
+        atsMatch: Number(atsMatch),
+        successProbability: Number(successProbability),
+        tailorWorth: Number(tailorWorth),
+        strengths: JSON.stringify(Array.isArray(strengths) ? strengths : []),
+        gaps: JSON.stringify(Array.isArray(gaps) ? gaps : []),
+        missingKeywords: JSON.stringify(Array.isArray(missingKeywords) ? missingKeywords : []),
       },
     })
 
     return NextResponse.json({ success: true, id: assessment.id })
-  } catch (err) {
-    console.error("Error:", err)
-    return NextResponse.json({ error: "Failed to save assessment" }, { status: 500 })
+  } catch (err: any) {
+    console.error("Save error:", err.message)
+    return NextResponse.json({ error: err.message || "Failed to save" }, { status: 500 })
   } finally {
     await prisma.$disconnect()
   }
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await prisma.user.findUnique({
@@ -61,10 +62,17 @@ export async function GET(req: NextRequest) {
       take: 100,
     })
 
-    return NextResponse.json(assessments)
-  } catch (err) {
-    console.error("Error:", err)
-    return NextResponse.json({ error: "Failed to fetch assessments" }, { status: 500 })
+    const formatted = assessments.map((a: any) => ({
+      ...a,
+      strengths: JSON.parse(a.strengths || "[]"),
+      gaps: JSON.parse(a.gaps || "[]"),
+      missingKeywords: JSON.parse(a.missingKeywords || "[]"),
+    }))
+
+    return NextResponse.json(formatted)
+  } catch (err: any) {
+    console.error("Load error:", err.message)
+    return NextResponse.json({ error: err.message || "Failed to load" }, { status: 500 })
   } finally {
     await prisma.$disconnect()
   }

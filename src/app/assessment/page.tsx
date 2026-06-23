@@ -56,7 +56,7 @@ export default function Assessment() {
       assessments.unshift(assessment)
       localStorage.setItem("jobfit_assessments", JSON.stringify(assessments.slice(0, 100)))
     } catch (e) {
-      console.error("Error saving:", e)
+      console.error("LocalStorage save error:", e)
     }
   }
 
