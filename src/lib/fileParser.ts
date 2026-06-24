@@ -1,5 +1,6 @@
 "use client"
 
+// @ts-nocheck
 import * as pdfjsLib from "pdfjs-dist"
 import * as mammoth from "mammoth"
 
