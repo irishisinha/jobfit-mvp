@@ -6,6 +6,7 @@ import NavBar from "@/components/NavBar"
 
 export default function TailorResumePage() {
   const [tailoredResume, setTailoredResume] = useState("")
+  const [changeSummary, setChangeSummary] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -80,6 +81,14 @@ export default function TailorResumePage() {
           
 
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+            {changeSummary && (
+              <div className="mb-8 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+                <h3 className="font-bold text-blue-900 mb-2">Changes Made for Job Fit:</h3>
+                <div className="text-sm text-blue-800 whitespace-pre-wrap">
+                  {changeSummary}
+                </div>
+              </div>
+            )}
             <div className="flex gap-3 mb-6">
               <button
                 onClick={downloadResume}
