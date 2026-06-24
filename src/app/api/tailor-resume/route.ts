@@ -20,30 +20,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are an expert resume writer. Your task is to tailor the following resume to match a specific job posting.
+    const prompt = `You are a resume optimization expert. Your ONLY job is to modify the provided resume to better match a job posting.
 
-CRITICAL INSTRUCTIONS:
-1. KEEP the exact same format and structure as the original resume
-2. PRESERVE all sections from the original (summary, experience, education, skills, certifications, etc.)
-3. ONLY modify the content to incorporate job keywords and reframe experience
-4. REORDER bullet points to highlight most relevant achievements first
-5. Add quantifiable metrics where they exist in the original
-6. Keep ALL information truthful - NEVER add false skills or experience
+CRITICAL RULES:
+1. Return the resume in EXACTLY the same format as the original
+2. Keep all sections in the same order
+3. Keep all existing text and structure
+4. ONLY modify content inline - don't rewrite sections
+5. Incorporate job keywords naturally by rewording existing content
+6. NEVER add new experience or false information
+7. Make the modified resume look like the original was written for this job
 
-ORIGINAL RESUME (keep this exact format):
+ORIGINAL RESUME (preserve this exact format):
 ${resume}
 
-JOB POSTING (for context):
-Title: ${jobTitle} at ${company}
+JOB POSTING:
+Position: ${jobTitle} at ${company}
 ${jobDescription.substring(0, 2000)}
 
-KEYWORDS TO NATURALLY INCORPORATE:
-${missingKeywords.join(", ")}
+KEY WORDS TO INCORPORATE: ${missingKeywords.slice(0, 10).join(", ")}
 
-EXPERIENCE GAPS TO ADDRESS (reframe existing experience):
-${gaps.join(", ")}
-
-OUTPUT: Return the complete resume in the exact same format as the original, with content optimized for this job. Do not create a new format - keep the original structure intact.`
+TASK: Return the resume with minimal edits to incorporate these keywords naturally while keeping the exact original format and structure.`;
 
     const message = await groq.chat.completions.create({
       messages: [
