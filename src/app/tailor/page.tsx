@@ -37,7 +37,11 @@ export default function TailorResumePage() {
 
       if (res.ok) {
         const result = await res.json()
-        let resume = (result.tailoredResume || "").replace("Tailored Resume", "").trim()
+        let resume = (result.tailoredResume || "")
+          .split("\n")
+          .filter((line: string) => !line.toLowerCase().match(/(tailored|generated|date|created)[\s:]/))
+          .join("\n")
+          .trim()
         setTailoredResume(resume)
       } else {
         setError("Failed to generate tailored resume")
@@ -106,3 +110,5 @@ export default function TailorResumePage() {
     </>
   )
 }
+
+
