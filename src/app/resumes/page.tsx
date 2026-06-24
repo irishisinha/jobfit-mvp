@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import NavBar from "@/components/NavBar"
+import { extractTextFromFile } from "@/lib/fileParser"
 
 interface SavedResume {
   id: string
@@ -49,7 +50,7 @@ export default function ResumesPage() {
 
     setUploading(true)
     try {
-      const text = await file.text()
+      const text = await extractTextFromFile(file)
       const resumeName = file.name.replace(/\.[^/.]+$/, "")
 
       const saveRes = await fetch("/api/resumes", {
