@@ -20,27 +20,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are a resume optimization expert. Your ONLY job is to modify the provided resume to better match a job posting.
+    const prompt = `You are a resume optimizer. Your ONLY task is to take the provided resume text and incorporate job keywords by making MINIMAL text edits.
 
-CRITICAL RULES:
-1. Return the resume in EXACTLY the same format as the original
-2. Keep all sections in the same order
-3. Keep all existing text and structure
-4. ONLY modify content inline - don't rewrite sections
-5. Incorporate job keywords naturally by rewording existing content
-6. NEVER add new experience or false information
-7. Make the modified resume look like the original was written for this job
+CRITICAL INSTRUCTIONS - DO NOT DEVIATE:
+1. Return the EXACT SAME resume text, character-for-character identical
+2. ONLY replace or add specific words/phrases to include job keywords
+3. DO NOT reformat, reorganize, or rewrite anything
+4. DO NOT change structure, sections, or layout
+5. Make edits INLINE only - keep everything in exact same order
+6. If a keyword can be incorporated naturally, do so. Otherwise leave as-is.
+7. Return the resume EXACTLY as provided, just with keyword optimization
 
-ORIGINAL RESUME (preserve this exact format):
+ORIGINAL RESUME (return this EXACT format):
 ${resume}
 
-JOB POSTING:
-Position: ${jobTitle} at ${company}
-${jobDescription.substring(0, 2000)}
+JOB KEYWORDS TO INCORPORATE: ${missingKeywords.slice(0, 8).join(", ")}
 
-KEY WORDS TO INCORPORATE: ${missingKeywords.slice(0, 10).join(", ")}
-
-TASK: Return the resume with minimal edits to incorporate these keywords naturally while keeping the exact original format and structure.`;
+TASK: Return the resume with the MINIMUM changes needed to incorporate these keywords. Keep everything else exactly the same.`;
 
     const message = await groq.chat.completions.create({
       messages: [
