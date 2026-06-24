@@ -1,6 +1,6 @@
 ﻿"use client"
 
-export const dynamic = "force-dynamic"
+import { unstable_noStore } from "next/cache"
 
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -15,6 +15,7 @@ interface SavedResume {
 }
 
 export default function ConsistencyCheckerPage() {
+  unstable_noStore()
   const { data: session, status } = useSession()
   const router = useRouter()
   const [resumes, setResumes] = useState<SavedResume[]>([])

@@ -1,6 +1,6 @@
 "use client"
 
-export const dynamic = "force-dynamic"
+import { unstable_noStore } from "next/cache"
 
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -29,6 +29,7 @@ interface AssessmentResult {
 }
 
 export default function Assessment() {
+  unstable_noStore()
   const { data: session, status } = useSession()
   const router = useRouter()
   const [savedResumes, setSavedResumes] = useState<SavedResume[]>([])
