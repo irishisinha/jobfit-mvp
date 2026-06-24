@@ -61,6 +61,16 @@ export default function ResumesPage() {
       const current = resumes
       const updated = [resume, ...current]
 
+      // Save to database
+      try {
+        await fetch("/api/resumes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: resume.name, content: resume.content })
+        })
+      } catch (e) {
+        console.error("Failed to save resume to database:", e)
+      }
       localStorage.setItem("jobfit_resumes", JSON.stringify(updated))
       setResumes(updated)
       setNewName("")

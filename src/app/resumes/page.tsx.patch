@@ -1,0 +1,35 @@
+--- a/src/app/resumes/page.tsx
++++ b/src/app/resumes/page.tsx
+@@ -32,10 +32,24 @@ export default function ResumesPage() {
+       setDebugMsg("Loading from localStorage...")
+       setTimeout(() => {
+         try {
++          // Try to load from database first
++          fetch("/api/resumes")
++            .then(res => res.json())
++            .then(data => {
++              if (data && data.length > 0) {
++                setResumes(data)
++                localStorage.setItem("jobfit_resumes", JSON.stringify(data))
++                setDebugMsg("Loaded from database")
++                return
++              }
++              // Fall back to localStorage
++              throw new Error("No resumes in database")
++            })
++            .catch(() => {
++              // Fall back to localStorage
++              const stored = localStorage.getItem("jobfit_resumes")
++              setDebugMsg(`Found in localStorage: ${stored ? "Yes" : "No"}`)
++              if (stored) {
++                setResumes(JSON.parse(stored))
++              }
++            })
+-          const stored = localStorage.getItem("jobfit_resumes")
+-          setDebugMsg(`Found: ${stored ? "Yes" : "No"}`)
+-          if (stored) {
+-            setResumes(JSON.parse(stored))
+-          }
+         } catch (e) {
+           setDebugMsg(`Error: ${e}`)
+         }
