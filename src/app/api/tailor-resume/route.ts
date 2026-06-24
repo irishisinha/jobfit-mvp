@@ -20,34 +20,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are an expert resume writer. Your task is to tailor the following resume for this specific job posting by:
-1. Incorporating relevant keywords from the job description
-2. Reordering experience to highlight most relevant skills first
-3. Reframing achievements to match job requirements
-4. Adding metrics and quantifiable results where possible
-5. Keeping ALL information truthful - only change wording, never add false skills
+    const prompt = `You are an expert resume writer. Your task is to tailor the following resume to match a specific job posting.
 
-ORIGINAL RESUME:
-${resume.substring(0, 3500)}
+CRITICAL INSTRUCTIONS:
+1. KEEP the exact same format and structure as the original resume
+2. PRESERVE all sections from the original (summary, experience, education, skills, certifications, etc.)
+3. ONLY modify the content to incorporate job keywords and reframe experience
+4. REORDER bullet points to highlight most relevant achievements first
+5. Add quantifiable metrics where they exist in the original
+6. Keep ALL information truthful - NEVER add false skills or experience
 
-JOB POSTING:
+ORIGINAL RESUME (keep this exact format):
+${resume}
+
+JOB POSTING (for context):
+Title: ${jobTitle} at ${company}
 ${jobDescription.substring(0, 2000)}
 
-MISSING KEYWORDS TO INCORPORATE:
+KEYWORDS TO NATURALLY INCORPORATE:
 ${missingKeywords.join(", ")}
 
-GAPS TO ADDRESS (by reframing existing experience):
+EXPERIENCE GAPS TO ADDRESS (reframe existing experience):
 ${gaps.join(", ")}
 
-Generate a complete tailored resume in clean markdown format with:
-- Name and contact info at top
-- Professional summary (2-3 lines, role-focused)
-- Technical Skills section (prioritized by job relevance)
-- Professional Experience section (2-3 bullet points per role, most relevant first)
-- Education section
-- Any certifications or additional info
-
-Remember: ONLY modify wording and presentation. NEVER add false information or skills not in original resume.`
+OUTPUT: Return the complete resume in the exact same format as the original, with content optimized for this job. Do not create a new format - keep the original structure intact.`
 
     const message = await groq.chat.completions.create({
       messages: [
