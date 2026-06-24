@@ -270,10 +270,16 @@ export default function Assessment() {
   const handleGenerateTailoredResume = async () => {
     if (!result || !selectedResume) return
     try {
-      const res = await fetch("/api/tailored-resume", {
+      const res = await fetch("/api/tailor-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company , tone: coverLetterTone,
+        body: JSON.stringify({ 
+          resume: selectedResume.content, 
+          jobDescription, 
+          jobTitle, 
+          company,
+          gaps: result.gaps || [],
+          missingKeywords: result.missingKeywords || []
         }),
       })
       const data = await res.json()
