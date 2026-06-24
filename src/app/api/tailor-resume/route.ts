@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { Anthropic } from "@anthropic-ai/sdk"
+import Groq from "groq-sdk"
 
-const client = new Anthropic()
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,22 +49,23 @@ Generate a complete tailored resume in clean markdown format with:
 
 Remember: ONLY modify wording and presentation. NEVER add false information or skills not in original resume.`
 
-    const message = await client.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 2000,
+    const message = await groq.chat.completions.create({
       messages: [
         {
           role: "user",
-          content: prompt
-        }
-      ]
+          content: prompt,
+        },
+      ],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 2000,
     })
 
-    const tailoredResume = message.content[0]?.type === "text" ? message.content[0].text : ""
+    const tailoredResume = message.choices[0]?.message?.content || ""
 
     return NextResponse.json({
       tailoredResume,
-      originalResume: resume
+      originalResume: resume,
     })
   } catch (error: any) {
     console.error("Tailor resume error:", error)
