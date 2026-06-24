@@ -13,3 +13,4 @@ build/
 
 /src/generated/prisma
 *.tsbuildinfo
+.env*
