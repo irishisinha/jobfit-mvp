@@ -90,11 +90,7 @@ Example format (replace values):
       fitScore >= 50 ? 35 + Math.random() * 20 :
       20 + Math.random() * 15
 
-    let tailorWorth = 0
-    if (fitScore >= 85) tailorWorth = 0
-    else if (fitScore >= 70) tailorWorth = 10
-    else if (fitScore >= 55) tailorWorth = 25
-    else if (fitScore >= 40) tailorWorth = 40
+    const tailorWorth = Math.min(35, Math.max(0, 100 - Math.max(fitScore, atsMatch)))
 
     const verdict = 
       fitScore >= 75 ? "Strong Fit" :
