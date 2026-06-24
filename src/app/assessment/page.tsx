@@ -65,12 +65,26 @@ export default function Assessment() {
   }, [status, router])
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("jobfit_resumes")
-      if (stored) setSavedResumes(JSON.parse(stored))
-    } catch (e) {
-      console.error("Error loading resumes:", e)
+    if (status !== "authenticated") return
+    
+    const loadResumes = async () => {
+      try {
+        const res = await fetch("/api/resumes")
+        if (res.ok) {
+          const data = await res.json()
+          setSavedResumes(data || [])
+        }
+      } catch (e) {
+        console.error("Error loading resumes:", e)
+        try {
+          const stored = localStorage.getItem("jobfit_resumes")
+          if (stored) setSavedResumes(JSON.parse(stored))
+        } catch (err) {
+          console.error("Error loading from localStorage:", err)
+        }
+      }
     }
+    loadResumes()
   }, [status])
 
 
