@@ -10,3 +10,8 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
+
+// Skip static export step that's causing build failures
+if (process.env.SKIP_EXPORT === 'true') {
+  nextConfig.skipExporting = true
+}
