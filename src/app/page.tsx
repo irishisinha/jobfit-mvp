@@ -1,14 +1,11 @@
 "use client"
 
-import { unstable_noStore } from "next/cache"
-
 import { useSession, signIn } from "next-auth/react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 export default function Home() {
-  unstable_noStore()
   const { data: session, status } = useSession()
   const router = useRouter()
 

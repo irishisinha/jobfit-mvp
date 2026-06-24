@@ -1,7 +1,5 @@
 ﻿"use client"
 
-import { unstable_noStore } from "next/cache"
-
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -22,7 +20,6 @@ interface Assessment {
 }
 
 export default function DashboardPage() {
-  unstable_noStore()
   const { data: session, status } = useSession()
   const router = useRouter()
   const [assessments, setAssessments] = useState<Assessment[]>([])
