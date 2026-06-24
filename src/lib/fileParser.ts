@@ -1,12 +1,18 @@
 "use client"
 
-// @ts-nocheck
-import * as pdfjsLib from "pdfjs-dist"
 import * as mammoth from "mammoth"
 
-// Set up PDF.js worker - use CDN version
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+let pdfjsLib: any = null;
+
+// Dynamically import pdfjs only on client
+async function getPdfjsLib() {
+  if (pdfjsLib) return pdfjsLib;
+  
+  if (typeof window !== "undefined") {
+    pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  }
+  return pdfjsLib;
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
@@ -29,6 +35,9 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
 async function extractPdfText(file: File): Promise<string> {
   try {
+    const pdfjsLib = await getPdfjsLib();
+    if (!pdfjsLib) throw new Error("PDF.js not available");
+    
     const arrayBuffer = await file.arrayBuffer()
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
     let text = ""
