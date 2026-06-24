@@ -1,17 +1,26 @@
-import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
+import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "../../../../lib/auth"
-import { prisma } from "../../../../lib/prisma"
+import { PrismaClient } from "@prisma/client"
 
-export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const prisma = new PrismaClient()
+  
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
+    const { id } = params
+
+    if (!id) {
+      return NextResponse.json({ error: "Resume ID required" }, { status: 400 })
+    }
+
+    // Verify resume belongs to user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: session.user.email }
     })
 
     if (!user) {
@@ -19,7 +28,7 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
     }
 
     const resume = await prisma.resume.findUnique({
-      where: { id: context.params.id },
+      where: { id }
     })
 
     if (!resume || resume.userId !== user.id) {
@@ -27,11 +36,14 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
     }
 
     await prisma.resume.delete({
-      where: { id: context.params.id },
+      where: { id }
     })
 
+    await prisma.$disconnect()
     return NextResponse.json({ success: true })
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to delete resume" }, { status: 500 })
+  } catch (error: any) {
+    console.error("Resume DELETE error:", error)
+    await prisma.$disconnect()
+    return NextResponse.json({ error: error.message || "Failed" }, { status: 500 })
   }
 }
