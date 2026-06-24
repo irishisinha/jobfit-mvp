@@ -60,6 +60,14 @@ export default function Assessment() {
     }
   }
 
+  
+  useEffect(() => {
+    // Regenerate cover letter when tone changes (if one already exists)
+    if (coverLetter && selectedResume && jobDescription && result) {
+      handleGenerateCoverLetter()
+    }
+  }, [coverLetterTone])
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
   }, [status, router])
