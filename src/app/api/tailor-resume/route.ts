@@ -20,23 +20,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are a resume optimizer. Your ONLY task is to take the provided resume text and incorporate job keywords by making MINIMAL text edits.
+    const prompt = `CRITICAL: You MUST return the resume text EXACTLY as provided. Do NOT change formatting, spacing, line breaks, or structure in ANY way.
 
-CRITICAL INSTRUCTIONS - DO NOT DEVIATE:
-1. Return the EXACT SAME resume text, character-for-character identical
-2. ONLY replace or add specific words/phrases to include job keywords
-3. DO NOT reformat, reorganize, or rewrite anything
-4. DO NOT change structure, sections, or layout
-5. Make edits INLINE only - keep everything in exact same order
-6. If a keyword can be incorporated naturally, do so. Otherwise leave as-is.
-7. Return the resume EXACTLY as provided, just with keyword optimization
+Your ONLY job: In the provided resume text, find places where job keywords can be naturally incorporated by replacing single words or short phrases. Make MINIMAL edits only.
 
-ORIGINAL RESUME (return this EXACT format):
+RULES:
+- Return every single character, space, and line break EXACTLY as in original
+- NO reformatting whatsoever
+- NO reordering of sections
+- ONLY replace individual words/short phrases with synonyms that include job keywords
+- If you cannot incorporate a keyword naturally, leave the text unchanged
+- Do NOT add, remove, or rearrange anything
+
+ORIGINAL RESUME (return this VERBATIM with only inline keyword replacements):
 ${resume}
 
-JOB KEYWORDS TO INCORPORATE: ${missingKeywords.slice(0, 8).join(", ")}
+JOB KEYWORDS: ${missingKeywords.slice(0, 5).join(", ")}
 
-TASK: Return the resume with the MINIMUM changes needed to incorporate these keywords. Keep everything else exactly the same.`;
+Return the resume with ZERO changes except minimal keyword incorporation.`;
 
     const message = await groq.chat.completions.create({
       messages: [
