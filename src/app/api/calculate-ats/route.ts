@@ -13,18 +13,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    const resumePreview = resume.substring(0, 3500)
+    const jobPreview = jobDescription.substring(0, 2000)
+
     const prompt = `You are an ATS (Applicant Tracking System) expert. 
     
 Analyze how well this resume matches the job description from an ATS perspective (keyword matching, format compatibility, skill alignment).
 
 Resume (first 3500 chars):
-$([char]36){{resume.substring(0, 3500)}}
+${resumePreview}
 
 Job Description (first 2000 chars):
-$([char]36){{jobDescription.substring(0, 2000)}}
+${jobPreview}
 
 Respond with ONLY a number between 0-100 representing the ATS match score. No explanation, just the number.`
 
+    console.log("ATS calculation starting...")
     const message = await groq.chat.completions.create({
       messages: [
         {
@@ -39,12 +43,13 @@ Respond with ONLY a number between 0-100 representing the ATS match score. No ex
 
     const scoreText = message.choices[0]?.message?.content?.trim() || "50"
     const atsMatch = Math.min(100, Math.max(0, parseInt(scoreText)))
+    console.log("ATS score calculated:", atsMatch)
 
     return NextResponse.json({ atsMatch })
   } catch (error: any) {
     console.error("ATS calculation error:", error.message)
     return NextResponse.json({ 
-      error: "Failed to calculate ATS match" 
+      error: `Failed to calculate ATS match: ${error.message}` 
     }, { status: 500 })
   }
 }
