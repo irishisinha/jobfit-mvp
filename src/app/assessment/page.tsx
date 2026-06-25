@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -292,22 +292,22 @@ export default function Assessment() {
   const handleGenerateTailoredResume = async () => {
     if (!result || !selectedResume) return
     try {
-      const res = await fetch("/api/tailor-resume", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          resume: selectedResume.content, 
-          jobDescription, 
-          jobTitle, 
-          company,
-          gaps: result.gaps || [],
-          missingKeywords: result.missingKeywords || []
-        }),
-      })
-      const data = await res.json()
-      setTailoredResume(data.tailoredResume || "Failed to generate")
+      // Store data for tailor page
+      const tailorData = {
+        resume: selectedResume.content,
+        jobDescription,
+        jobTitle,
+        company,
+        gaps: result.gaps || [],
+        missingKeywords: result.missingKeywords || [],
+        originalAtsMatch: result.atsMatch
+      }
+      sessionStorage.setItem("tailorData", JSON.stringify(tailorData))
+      
+      // Navigate to tailor page
+      router.push("/tailor")
     } catch (err) {
-      setTailoredResume("Failed to generate")
+      console.error("Error navigating to tailor:", err)
     }
   }
 
@@ -445,15 +445,15 @@ export default function Assessment() {
               <div className="pt-3 border-t-2 border-green-300">
                 {result.fitScore >= 75 ? (
                   <div className="bg-green-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-green-800">✓ APPLY: Strong match with your qualifications</p>
+                    <p className="text-sm font-bold text-green-800">âœ“ APPLY: Strong match with your qualifications</p>
                   </div>
                 ) : result.fitScore >= 50 ? (
                   <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-yellow-800">⚡ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
+                    <p className="text-sm font-bold text-yellow-800">âš¡ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
                   </div>
                 ) : (
                   <div className="bg-red-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-red-800">❌ RISKY: Weak match - significant skill gaps</p>
+                    <p className="text-sm font-bold text-red-800">âŒ RISKY: Weak match - significant skill gaps</p>
                   </div>
                 )}
               </div>
@@ -468,7 +468,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.strengths || []).map((s, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-green-600 mr-2">✓</span>
+                        <span className="text-green-600 mr-2">âœ“</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -479,7 +479,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.gaps || []).map((g, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-red-600 mr-2">— '</span>
+                        <span className="text-red-600 mr-2">â€”Â '</span>
                         <span>{g}</span>
                       </li>
                     ))}
@@ -499,7 +499,7 @@ export default function Assessment() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-blue-600 mb-4">📄 Cover Letter</h3>
+                <h3 className="text-lg font-bold text-blue-600 mb-4">ðŸ“„ Cover Letter</h3>
                 <div className="flex gap-2 mb-4">
                   <button onClick={() => setCoverLetterTone("professional")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "professional" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Professional</button>
                   <button onClick={() => setCoverLetterTone("enthusiastic")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "enthusiastic" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Enthusiastic</button>
@@ -508,7 +508,7 @@ export default function Assessment() {
                 {coverLetter ? (
                   <div className="space-y-2">
                     <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">â¬‡ï¸ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">Generate</button>
@@ -516,11 +516,11 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-green-600 mb-4">✏️ Tailored Resume</h3>
+                <h3 className="text-lg font-bold text-green-600 mb-4">âœï¸ Tailored Resume</h3>
                 {tailoredResume ? (
                   <div className="space-y-2">
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(tailoredResume, "Tailored-Resume")} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(tailoredResume, "Tailored-Resume")} className="w-full btn-primary">â¬‡ï¸ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
@@ -530,11 +530,11 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-purple-600 mb-4">📧 LinkedIn Outreach</h3>
+                <h3 className="text-lg font-bold text-purple-600 mb-4">ðŸ“§ LinkedIn Outreach</h3>
                 {linkedInMessage ? (
                   <div className="space-y-2">
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(linkedInMessage, "LinkedIn-Outreach")} className="w-full btn-primary">⬇️ Download</button>
+                    <button onClick={() => downloadDocx(linkedInMessage, "LinkedIn-Outreach")} className="w-full btn-primary">â¬‡ï¸ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">Generate</button>
@@ -563,6 +563,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 
