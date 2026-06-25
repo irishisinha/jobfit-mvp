@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import NavBar from "@/components/NavBar"
 
@@ -17,7 +17,7 @@ interface TailorData {
 
 export default function TailorPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  
   const [tailoredResume, setTailoredResume] = useState("")
   const [changeSummary, setChangeSummary] = useState("")
   const [loading, setLoading] = useState(true)
