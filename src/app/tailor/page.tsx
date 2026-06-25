@@ -1,28 +1,43 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import NavBar from "@/components/NavBar"
 
-export default function TailorResumePage() {
+interface TailorData {
+  resume: string
+  jobDescription: string
+  jobTitle: string
+  company: string
+  gaps: string[]
+  missingKeywords: string[]
+}
+
+export default function TailorPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [tailoredResume, setTailoredResume] = useState("")
   const [changeSummary, setChangeSummary] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
   useEffect(() => {
-    const assessmentData = sessionStorage.getItem("currentAssessment")
-    if (assessmentData) {
-      const data = JSON.parse(assessmentData)
-      generateTailoredResume(data)
-    } else {
-      setError("No assessment data found. Please complete an assessment first.")
+    const data = sessionStorage.getItem("tailorData")
+    if (!data) {
+      setError("No assessment data found")
       setLoading(false)
+      return
     }
+
+    const parsedData: TailorData = JSON.parse(data)
+    generateTailoredResume(parsedData)
   }, [])
 
-  const generateTailoredResume = async (data: any) => {
+  const generateTailoredResume = async (data: TailorData) => {
     try {
+      console.log("Calling tailor API with:", { gaps: data.gaps?.length, keywords: data.missingKeywords?.length })
+      
       const res = await fetch("/api/tailor-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,20 +51,28 @@ export default function TailorResumePage() {
         })
       })
 
+      console.log("Tailor API response status:", res.status)
+      
       if (res.ok) {
         const result = await res.json()
+        console.log("Got result with changeSummary:", !!result.changeSummary)
+        
         let resume = (result.tailoredResume || "")
           .split("\n")
           .filter((line: string) => !line.toLowerCase().match(/(tailored|generated|date|created)[\s:]/))
           .join("\n")
           .trim()
+        
         setTailoredResume(resume)
+        setChangeSummary(result.changeSummary || "")
       } else {
-        setError("Failed to generate tailored resume")
+        const errorText = await res.text()
+        console.error("API error:", errorText)
+        setError(`Failed to generate tailored resume (${res.status})`)
       }
-    } catch (err) {
-      setError("Error generating resume")
-      console.error(err)
+    } catch (err: any) {
+      console.error("Error generating resume:", err)
+      setError(`Error: ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -78,8 +101,6 @@ export default function TailorResumePage() {
       <NavBar />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
         <div className="max-w-4xl mx-auto">
-          
-
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
             {changeSummary && (
               <div className="mb-8 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
@@ -89,6 +110,7 @@ export default function TailorResumePage() {
                 </div>
               </div>
             )}
+            
             <div className="flex gap-3 mb-6">
               <button
                 onClick={downloadResume}
@@ -111,7 +133,7 @@ export default function TailorResumePage() {
 
           <div className="text-center">
             <Link href="/assessment" className="text-blue-600 hover:underline">
-              ? Back to Assessment
+              ← Back to Assessment
             </Link>
           </div>
         </div>
@@ -119,5 +141,3 @@ export default function TailorResumePage() {
     </>
   )
 }
-
-
