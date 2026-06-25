@@ -37,7 +37,7 @@ ${resume}
 
 JOB KEYWORDS: ${missingKeywords.slice(0, 5).join(", ")}
 
-Return the resume with ZERO changes except minimal keyword incorporation.`;
+Return the resume with ZERO changes except minimal keyword incorporation.`
 
     const message = await groq.chat.completions.create({
       messages: [
@@ -54,12 +54,26 @@ Return the resume with ZERO changes except minimal keyword incorporation.`;
     const tailoredResume = message.choices[0]?.message?.content || ""
 
     // Generate summary of changes
-    const changeSummary = "Keywords incorporated: " + missingKeywords.slice(0, 5).join(", ");
+    const summaryPrompt = `Based on these job keywords that should be incorporated: ${missingKeywords.slice(0, 5).join(", ")}, and these experience gaps to address: ${gaps.slice(0, 3).join(", ")}, provide a brief 3-4 bullet point summary of what optimizations were made to the resume. Be specific about keywords added or how experience was reframed. Format as bullet points starting with "•". Keep it concise.`
+
+    const summaryMessage = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: summaryPrompt,
+        },
+      ],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 500,
+    })
+
+    const changeSummary = summaryMessage.choices[0]?.message?.content || "Resume optimized for job fit."
 
     return NextResponse.json({
       tailoredResume,
       originalResume: resume,
-      changeSummary
+      changeSummary,
     })
   } catch (error: any) {
     console.error("Tailor resume error:", error)
