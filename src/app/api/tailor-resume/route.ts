@@ -55,11 +55,23 @@ Return the resume with ZERO changes except minimal keyword incorporation.`
     const tailoredResume = message.choices[0]?.message?.content || ""
     console.log("Tailored resume generated, length:", tailoredResume.length)
 
-    // Generate summary of changes
+    // Generate summary by comparing original to tailored - ONLY real changes
     let changeSummary = ""
     try {
-      console.log("Generating summary...")
-      const summaryPrompt = `Based on these job keywords that should be incorporated: ${missingKeywords.slice(0, 5).join(", ")}, and these experience gaps to address: ${gaps.slice(0, 3).join(", ")}, provide a brief 3-4 bullet point summary of what optimizations were made to the resume for the job. Be specific about keywords added or how experience was reframed. Format as a simple bulleted list with • symbols.`
+      console.log("Generating summary by comparing resumes...")
+      const summaryPrompt = `You are comparing two resume versions to identify ONLY the actual changes made.
+
+ORIGINAL RESUME:
+${resume.substring(0, 1500)}
+
+TAILORED RESUME:
+${tailoredResume.substring(0, 1500)}
+
+Analyze what ACTUALLY CHANGED between these two versions. Only list real changes - do NOT make up or speculate about changes.
+
+If you find actual keyword additions or replacements, describe them specifically. If minimal or no changes were made, say "Resume structure and content preserved - minimal keyword optimization made."
+
+Provide 2-3 bullet points of ONLY the actual changes you can identify.`
 
       const summaryMessage = await groq.chat.completions.create({
         messages: [
@@ -70,10 +82,10 @@ Return the resume with ZERO changes except minimal keyword incorporation.`
         ],
         model: "llama-3.1-8b-instant",
         temperature: 0,
-        max_tokens: 500,
+        max_tokens: 300,
       })
 
-      changeSummary = summaryMessage.choices[0]?.message?.content || "Resume optimized for job fit."
+      changeSummary = summaryMessage.choices[0]?.message?.content || "Resume optimized with minimal keyword additions."
       console.log("Summary generated, length:", changeSummary.length)
     } catch (summaryErr) {
       console.error("Summary generation failed, continuing without it:", summaryErr)

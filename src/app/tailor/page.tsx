@@ -17,13 +17,13 @@ interface TailorData {
 
 export default function TailorPage() {
   const router = useRouter()
-  
   const [tailoredResume, setTailoredResume] = useState("")
   const [changeSummary, setChangeSummary] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [originalAtsMatch, setOriginalAtsMatch] = useState<number | null>(null)
   const [improvedAtsMatch, setImprovedAtsMatch] = useState<number | null>(null)
+  const [atsLoading, setAtsLoading] = useState(false)
 
   useEffect(() => {
     const data = sessionStorage.getItem("tailorData")
@@ -71,8 +71,9 @@ export default function TailorPage() {
         setChangeSummary(result.changeSummary || "")
         
         // Calculate ATS match for tailored resume
-        if (data.jobDescription) {
+        if (data.jobDescription && resume) {
           console.log("Calculating improved ATS match...")
+          setAtsLoading(true)
           await calculateImprovedAts(resume, data.jobDescription)
         }
       } else {
@@ -90,6 +91,7 @@ export default function TailorPage() {
 
   const calculateImprovedAts = async (resume: string, jobDesc: string) => {
     try {
+      console.log("Fetching improved ATS score...")
       const res = await fetch("/api/calculate-ats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,13 +103,18 @@ export default function TailorPage() {
 
       if (res.ok) {
         const result = await res.json()
+        console.log("Improved ATS result:", result)
         setImprovedAtsMatch(result.atsMatch)
-        console.log("Improved ATS:", result.atsMatch)
+        console.log("Improved ATS set to:", result.atsMatch)
       } else {
-        console.error("Failed to calculate ATS:", res.status)
+        console.error("Failed to calculate ATS:", res.status, await res.text())
+        setImprovedAtsMatch(null)
       }
     } catch (err) {
       console.error("Error calculating ATS:", err)
+      setImprovedAtsMatch(null)
+    } finally {
+      setAtsLoading(false)
     }
   }
 
@@ -147,16 +154,18 @@ export default function TailorPage() {
                   </div>
                   <div className="text-2xl text-yellow-400">→</div>
                   <div className="text-center">
-                    {improvedAtsMatch !== null ? (
+                    {atsLoading ? (
+                      <div className="text-sm text-yellow-600">Calculating ATS score...</div>
+                    ) : improvedAtsMatch !== null ? (
                       <>
                         <div className="text-2xl font-bold text-green-700">{improvedAtsMatch}%</div>
                         <div className="text-sm text-green-600">After Tailoring</div>
                         <div className="text-xs text-green-600 mt-1">
-                          (+{Math.max(0, improvedAtsMatch - originalAtsMatch)}%)
+                          ({improvedAtsMatch > originalAtsMatch ? '+' : ''}{improvedAtsMatch - originalAtsMatch}%)
                         </div>
                       </>
                     ) : (
-                      <div className="text-sm text-yellow-600">Calculating...</div>
+                      <div className="text-sm text-red-600">Could not calculate</div>
                     )}
                   </div>
                 </div>
