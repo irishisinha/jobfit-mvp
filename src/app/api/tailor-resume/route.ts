@@ -53,9 +53,13 @@ Return the resume with ZERO changes except minimal keyword incorporation.`;
 
     const tailoredResume = message.choices[0]?.message?.content || ""
 
+    // Generate summary of changes
+    const changeSummary = "Keywords incorporated: " + missingKeywords.slice(0, 5).join(", ");
+
     return NextResponse.json({
       tailoredResume,
       originalResume: resume,
+      changeSummary
     })
   } catch (error: any) {
     console.error("Tailor resume error:", error)
