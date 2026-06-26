@@ -499,7 +499,7 @@ export default function Assessment() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-blue-600 mb-4">ðŸ“„ Cover Letter</h3>
+                <h3 className="text-lg font-bold text-blue-600 mb-4">📋 Cover Letter</h3>
                 <div className="flex gap-2 mb-4">
                   <button onClick={() => setCoverLetterTone("professional")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "professional" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Professional</button>
                   <button onClick={() => setCoverLetterTone("enthusiastic")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "enthusiastic" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Enthusiastic</button>
@@ -516,7 +516,7 @@ export default function Assessment() {
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-green-600 mb-4">âœï¸ Tailored Resume</h3>
+                <h3 className="text-lg font-bold text-green-600 mb-4">✏️ Tailored Resume</h3>
                 {tailoredResume ? (
                   <div className="space-y-2">
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
@@ -524,13 +524,13 @@ export default function Assessment() {
                   </div>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
-                    {result.tailorWorth < 5 ? "Perfect Fit - No Changes Needed" : "Generate Tailored Resume"}
+                <h3 className="text-lg font-bold text-green-600 mb-4">✏️ Tailored Resume</h3>
                   </button>
                 )}
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow">
-                <h3 className="text-lg font-bold text-purple-600 mb-4">ðŸ“§ LinkedIn Outreach</h3>
+                <h3 className="text-lg font-bold text-purple-600 mb-4">✉️ LinkedIn Outreach</h3>
                 {linkedInMessage ? (
                   <div className="space-y-2">
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
