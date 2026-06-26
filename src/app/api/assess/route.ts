@@ -75,63 +75,34 @@ function calculateAtsMatch(resume: string, jobDescription: string): number {
 async function assessJob(resume: string, jobDescription: string) {
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-  const prompt = `You are an expert recruiter analyzing resume-to-job fit. Your job is to identify REAL gaps, not preferences.
+  const prompt = `Extract gaps by comparing resume to job requirements.
 
-RESUME:
+RESUME TEXT:
 ${resume}
 
-JOB DESCRIPTION:
+JOB DESCRIPTION TEXT:
 ${jobDescription}
 
-STEP 1: Extract technical skills from RESUME
-List ALL:
-- Software/tools: databases, BI tools, programming languages, frameworks, platforms, etc.
-- Technical domains: cloud computing, data engineering, machine learning, etc.
-- Years of specific experience: "5+ years Python", "8 years management", etc.
-- Certifications/degrees
+ALGORITHM:
+1. Extract from resume: All technical tools, software, programming languages, frameworks, platforms, certifications, degrees, and years of specific experience mentioned
+2. Extract from job: All technical tools, software, programming languages, frameworks, platforms, certifications, degrees, and years of experience required or stated as mandatory
+3. Match: For each job requirement, check if resume contains it (exact mention or equivalent domain experience)
+4. Gap: Flag only if requirement is in job AND not in resume AND not transferable
+5. Ignore: Anything marked "preferred", "ideal", "nice-to-have", soft skills, industry preferences
 
-STEP 2: Extract requirements from JOB DESCRIPTION
-List ALL:
-- Required software/tools: databases, BI tools, programming languages, frameworks, platforms, etc.
-- Required technical domains
-- Required experience level: years, seniority, domain depth
-- Required certifications/degrees
-- Nice-to-have vs must-have (differentiate!)
+Output JSON with three arrays:
+- strengths: Key technical strengths from resume (not generic)
+- gaps: Only missing required skills/tools/certifications/experience
+- missingKeywords: Tool/skill names that are required but missing
 
-STEP 3: Compare intelligently
-For EACH job requirement, ask:
-- Does resume mention this tool/skill explicitly? ✓
-- OR does resume show equivalent experience that transfers? ✓
-- OR is this a nice-to-have/preference (not a gap)? ✗
-- Only flag TRUE GAPS: missing required skills that don't have equivalents
-
-CRITICAL RULES:
-- Tool names must match (Snowflake in resume = covers Snowflake requirement)
-- Experience domains transfer (FMCG/retail/tech industry experience = covers industry background)
-- Ignore: "preferred", "ideal", "nice-to-have", soft skills
-- Flag: Required tools/certifications NOT in resume, experience level gaps, domain expertise gaps
-
-EXAMPLE GAPS TO FLAG:
-- Job requires "Snowflake" but resume has no data warehouse experience ✓ GAP
-- Job requires "5+ years management" but resume shows 2 years ✓ GAP
-- Job requires "AWS certification" but resume has no AWS ✓ GAP
-
-EXAMPLE GAPS TO IGNORE:
-- "FMCG industry preferred" when resume has Pidilite (FMCG company) ✗ NO GAP
-- "MBA ideal" when resume shows 10 years relevant experience ✗ NO GAP
-- "Nice-to-have: Tableau" when not listed as required ✗ NO GAP
-
-Respond in this EXACT JSON format:
+Format:
 {
-  "strengths": ["real strength 1", "real strength 2", "real strength 3"],
-  "gaps": ["ONLY critical missing requirements from job"],
-  "missingKeywords": ["critical tool/skill 1", "critical tool/skill 2"]
+  "strengths": ["tool/skill 1", "tool/skill 2"],
+  "gaps": ["Missing X", "Y years experience required"],
+  "missingKeywords": ["tool1", "tool2"]
 }
 
-GAPS should be: "Missing [tool/skill]" or "[Years] years of [skill] required"
-KEYWORDS should be: specific tool/skill names that are genuinely missing
-
-Respond ONLY with JSON, no explanation.`
+Only JSON, no other text.`
 
   const message = await groq.chat.completions.create({
     messages: [{ role: "user", content: prompt }],
