@@ -58,29 +58,36 @@ function simpleStem(word: string): string {
 }
 
 function calculateAtsMatch(resume: string, jobDescription: string): number {
-  // Normalize both texts
   const normalizedJob = normalizeText(jobDescription)
   const normalizedResume = normalizeText(resume)
   
-  // Extract words (> 3 chars to avoid "the", "and", etc)
+  // Extract and process job keywords
   let jobKeywords = normalizedJob.split(/\W+/).filter(w => w.length > 3)
-  let resumeKeywords = normalizedResume.split(/\W+/).filter(w => w.length > 3)
-  
-  // Expand abbreviations
   jobKeywords = expandAbbreviations(jobKeywords)
+  
+  // Count keyword frequency in job description
+  const keywordFreq = new Map<string, number>()
+  for (const word of jobKeywords) {
+    const stemmed = simpleStem(word)
+    keywordFreq.set(stemmed, (keywordFreq.get(stemmed) || 0) + 1)
+  }
+  
+  // Get TOP 15 keywords by frequency (most important)
+  const topKeywords = Array.from(keywordFreq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([word]) => word)
+  
+  // Check how many top keywords appear in resume
+  let resumeKeywords = normalizedResume.split(/\W+/).filter(w => w.length > 3)
   resumeKeywords = expandAbbreviations(resumeKeywords)
   
-  // Apply stemming for better matching
-  const jobStemmed = new Set(jobKeywords.map(simpleStem))
   const resumeStemmed = new Set(resumeKeywords.map(simpleStem))
+  const matches = topKeywords.filter(k => resumeStemmed.has(k)).length
   
-  // Count matches (keywords that appear in both)
-  const matches = Array.from(jobStemmed).filter(k => resumeStemmed.has(k)).length
+  // Score based on TOP keywords only (70-85% is good)
+  const percentage = Math.round((matches / Math.max(topKeywords.length, 1)) * 100)
   
-  // Calculate percentage based on job requirements
-  const percentage = Math.round((matches / Math.max(jobStemmed.size, 1)) * 100)
-  
-  // Clamp between 20-100
   return Math.min(100, Math.max(20, percentage))
 }
 
@@ -200,3 +207,4 @@ export async function POST(req: NextRequest) {
     })
   }
 }
+

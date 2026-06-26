@@ -4,15 +4,11 @@
 function normalizeText(text: string): string {
   return text
     .toLowerCase()
-    // Remove hyphens (e-commerce → ecommerce)
     .replace(/-/g, '')
-    // Remove apostrophes (it's → its)
     .replace(/'/g, '')
-    // Remove extra spaces
     .trim()
 }
 
-// Common abbreviation mappings
 const ABBREVIATIONS: { [key: string]: string[] } = {
   'bu': ['business', 'unit'],
   'c2c': ['consumer', 'to', 'consumer'],
@@ -27,10 +23,8 @@ const ABBREVIATIONS: { [key: string]: string[] } = {
   'saas': ['software', 'service'],
 }
 
-// Expand abbreviations in text
 function expandAbbreviations(words: string[]): string[] {
   const expanded: string[] = []
-  
   for (const word of words) {
     if (ABBREVIATIONS[word]) {
       expanded.push(...ABBREVIATIONS[word])
@@ -38,13 +32,10 @@ function expandAbbreviations(words: string[]): string[] {
       expanded.push(word)
     }
   }
-  
   return expanded
 }
 
-// Basic stemming - handle common suffix variations
 function simpleStem(word: string): string {
-  // Remove common suffixes
   if (word.endsWith('ing')) return word.slice(0, -3)
   if (word.endsWith('ed')) return word.slice(0, -2)
   if (word.endsWith('er')) return word.slice(0, -2)
@@ -52,31 +43,44 @@ function simpleStem(word: string): string {
   return word
 }
 
-// SAME logic as assess endpoint - identical keyword matching
+// CRITICAL: Focus on top 10-15 most important keywords (by frequency)
 function calculateAtsMatch(resume: string, jobDescription: string): number {
-  // Normalize both texts
   const normalizedJob = normalizeText(jobDescription)
   const normalizedResume = normalizeText(resume)
   
-  // Extract words (> 3 chars to avoid "the", "and", etc)
+  // Extract and process job keywords
   let jobKeywords = normalizedJob.split(/\W+/).filter(w => w.length > 3)
-  let resumeKeywords = normalizedResume.split(/\W+/).filter(w => w.length > 3)
-  
-  // Expand abbreviations
   jobKeywords = expandAbbreviations(jobKeywords)
+  
+  // Count keyword frequency in job description
+  const keywordFreq = new Map<string, number>()
+  for (const word of jobKeywords) {
+    const stemmed = simpleStem(word)
+    keywordFreq.set(stemmed, (keywordFreq.get(stemmed) || 0) + 1)
+  }
+  
+  // Get TOP 15 keywords by frequency (most important)
+  const topKeywords = Array.from(keywordFreq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([word]) => word)
+  
+  console.log("Top critical keywords:", topKeywords)
+  
+  // Check how many top keywords appear in resume
+  let resumeKeywords = normalizedResume.split(/\W+/).filter(w => w.length > 3)
   resumeKeywords = expandAbbreviations(resumeKeywords)
   
-  // Apply stemming for better matching
-  const jobStemmed = new Set(jobKeywords.map(simpleStem))
   const resumeStemmed = new Set(resumeKeywords.map(simpleStem))
+  const matches = topKeywords.filter(k => resumeStemmed.has(k)).length
   
-  // Count matches (keywords that appear in both)
-  const matches = Array.from(jobStemmed).filter(k => resumeStemmed.has(k)).length
+  // Score based on TOP keywords only (not all keywords)
+  // 15 keywords: 70% match = 10/15, 80% match = 12/15, 90% match = 13/15
+  const percentage = Math.round((matches / Math.max(topKeywords.length, 1)) * 100)
   
-  // Calculate percentage based on job requirements
-  const percentage = Math.round((matches / Math.max(jobStemmed.size, 1)) * 100)
+  console.log(`Critical keywords match: ${matches}/${topKeywords.length} = ${percentage}%`)
   
-  // Clamp between 20-100
+  // Clamp between 20-100 (but 70-85% is realistic GOOD)
   return Math.min(100, Math.max(20, percentage))
 }
 
@@ -88,11 +92,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    console.log("Calculating ATS match with improved keyword matching...")
+    console.log("Calculating ATS match on TOP CRITICAL keywords...")
     
     const atsMatch = calculateAtsMatch(resume, jobDescription)
     
-    console.log("ATS score:", atsMatch)
+    console.log("Final ATS score (based on critical keywords):", atsMatch)
 
     return NextResponse.json({ atsMatch })
   } catch (error: any) {
