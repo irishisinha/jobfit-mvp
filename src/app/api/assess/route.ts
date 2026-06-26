@@ -27,27 +27,33 @@ ${resume}
 JOB DESCRIPTION:
 ${jobDescription}
 
-IDENTIFY GAPS (but be selective):
-- CRITICAL gaps: Missing required technical skills, tools, or core competencies
-- IGNORE soft gaps: Industry experience (transferable skills from other industries count)
-- IGNORE preferences: "Nice-to-have", "preferred", "ideal", experience with specific industries
-- IGNORE generic: General soft skills (detail-oriented, communication, etc)
+IMPORTANT: Recognize industry experience by COMPANY, not just keywords:
+- If resume mentions "Pidilite" or "HUL" = has FMCG experience
+- If resume mentions "TCS", "Infosys", "Accenture" = has enterprise software experience
+- If resume mentions "Goldman Sachs", "Morgan Stanley" = has financial services experience
+- If resume mentions "Google", "Meta", "Amazon" = has big tech experience
 
-Only flag TRUE MISSING SKILLS, not industry preferences.
+IDENTIFY GAPS (be selective):
+- CRITICAL gaps: Missing required technical skills, tools, core competencies
+- DO NOT flag: Industry experience if resume shows equivalent (by company or explicit mention)
+- DO NOT flag: Preferences, nice-to-have, ideal qualifications
+- DO NOT flag: Generic soft skills
+
+Only flag TRUE MISSING SKILLS, not industry preferences or company-name variants.
 
 Examples of TRUE GAPS:
-- Job needs "Python" but resume has no Python experience
-- Job needs "5+ years management" but resume shows 2 years
+- Job needs "Python" but resume has no Python/coding
+- Job needs "CRM systems" but no mention of Salesforce/HubSpot/Dynamics
 
-Examples of NOT GAPS (ignore these):
-- "Experience in FMCG industry preferred" (other industries transfer)
-- "Familiarity with Agile nice-to-have" (if they have structured project exp)
-- "MBA preferred" (relevant experience substitutes)
+Examples of NOT GAPS (ignore):
+- "FMCG experience required" but resume has "Pidilite" or "HUL"
+- "Retail experience preferred" but resume shows "Amazon operations" or "Flipkart"
+- "Tech company background ideal" but resume has "Google" or "Microsoft"
 
 Respond in this EXACT JSON format:
 {
   "strengths": ["real strength 1", "real strength 2", "real strength 3"],
-  "gaps": ["ONLY critical gaps", "not nice-to-haves"],
+  "gaps": ["ONLY critical missing skills", "not preferences"],
   "missingKeywords": ["critical keyword 1", "critical keyword 2"]
 }
 
