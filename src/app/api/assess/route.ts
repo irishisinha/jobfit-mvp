@@ -39,10 +39,10 @@ export async function POST(req: NextRequest) {
         content: `Analyze resume match for: ${jobTitle} at ${company}
 
 CANDIDATE RESUME:
-${resume.substring(0, 3500)}
+${resume}
 
 REQUIRED SKILLS AND EXPERIENCE:
-${jobDescription.substring(0, 2000)}
+${jobDescription}
 
 Scoring: 0-100 based on how well the resume matches the job requirements.
 - 90-100: Has almost all requirements with strong experience

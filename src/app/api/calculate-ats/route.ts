@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
 
 const groq = new Groq({
@@ -13,22 +13,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const resumePreview = resume.substring(0, 3500)
-    const jobPreview = jobDescription.substring(0, 2000)
-
+    // Use full resume, not truncated
     const prompt = `You are an ATS (Applicant Tracking System) expert. 
     
-Analyze how well this resume matches the job description from an ATS perspective (keyword matching, format compatibility, skill alignment).
+Analyze how well this complete resume matches the job description from an ATS perspective (keyword matching, format compatibility, skill alignment).
 
-Resume (first 3500 chars):
-${resumePreview}
+COMPLETE RESUME:
+${resume}
 
-Job Description (first 2000 chars):
-${jobPreview}
+JOB DESCRIPTION:
+${jobDescription}
 
 Respond with ONLY a number between 0-100 representing the ATS match score. No explanation, just the number.`
 
     console.log("ATS calculation starting...")
+    console.log("Resume length:", resume.length)
+    console.log("Job description length:", jobDescription.length)
+    
     const message = await groq.chat.completions.create({
       messages: [
         {

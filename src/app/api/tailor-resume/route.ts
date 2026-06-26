@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import Groq from "groq-sdk"
@@ -21,25 +21,29 @@ export async function POST(req: NextRequest) {
     }
 
     const keywords = missingKeywords.slice(0, 5)
-    const prompt = `TASK: Add job keywords to resume and mark additions.
+    
+    // Use FULL resume - no truncation
+    const prompt = `TASK: Add job keywords to complete resume and mark additions.
 
-RESUME TO MODIFY:
-${resume.substring(0, 3500)}
+COMPLETE RESUME TO MODIFY:
+${resume}
 
 KEYWORDS TO ADD (pick 2-3 most relevant): ${keywords.join(", ")}
 
 INSTRUCTIONS:
 1. Keep resume format EXACTLY the same
-2. Find relevant places to naturally add keywords from the list
-3. Wrap ONLY the added/modified text in markers: [[[HIGHLIGHT_START]]]text[[[HIGHLIGHT_END]]]
-4. Add 2-3 keyword additions maximum
-5. Return the full modified resume with markers
+2. Process the ENTIRE resume, not just parts
+3. Find relevant places to naturally add keywords from the list
+4. Wrap ONLY the added/modified text in markers: [[[HIGHLIGHT_START]]]text[[[HIGHLIGHT_END]]]
+5. Add 2-3 keyword additions maximum
+6. Return the FULL modified resume with markers
 
 Example: If adding "leadership", you might change "managed team" to "managed team with [[[HIGHLIGHT_START]]]leadership[[[HIGHLIGHT_END]]]"
 
-NOW modify the resume and return it with markers.`
+NOW modify the entire resume and return it with markers.`
 
     console.log("Calling Groq for tailored resume...")
+    console.log("Resume length:", resume.length)
     console.log("Keywords to add:", keywords.join(", "))
     
     const message = await groq.chat.completions.create({
@@ -51,7 +55,7 @@ NOW modify the resume and return it with markers.`
       ],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 2500,
+      max_tokens: 4000,
     })
 
     const tailoredResume = message.choices[0]?.message?.content || ""
@@ -64,11 +68,11 @@ NOW modify the resume and return it with markers.`
     try {
       const summaryPrompt = `Compare original and modified resume. List the 2-3 keyword additions made:
 
-ORIGINAL (excerpt):
-${resume.substring(0, 1000)}
+ORIGINAL (first 2000 chars):
+${resume.substring(0, 2000)}
 
-MODIFIED (excerpt):
-${tailoredResume.substring(0, 1000)}
+MODIFIED (first 2000 chars):
+${tailoredResume.substring(0, 2000)}
 
 Format: "• Added '[keyword]' to highlight [section]" 
 Only list actual changes visible in both versions.`
