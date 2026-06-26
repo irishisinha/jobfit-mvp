@@ -75,29 +75,32 @@ function calculateAtsMatch(resume: string, jobDescription: string): number {
 async function assessJob(resume: string, jobDescription: string) {
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-  const prompt = `Respond with ONLY valid JSON. No other text.
+  const prompt = `Extract resume gaps against job requirements. Respond ONLY with JSON.
 
-RESUME:
-${resume}
+RESUME: ${resume.substring(0, 2000)}
 
-JOB:
-${jobDescription}
+JOB: ${jobDescription.substring(0, 1500)}
 
-Extract as JSON:
+Rules:
+- Strengths: 3-4 key technical tools/skills from resume
+- Gaps: Only if job requires tool/skill that resume lacks
+- Ignore: "preferred", "nice-to-have", soft skills, industry preferences
+- Match: If resume has Pidilite/HUL = has FMCG experience. If has Google/Meta = has tech.
+
 {
-  "strengths": [list 3-4 key technical skills/tools from resume],
-  "gaps": [list only if tool/skill is required in job but missing from resume],
-  "missingKeywords": [list tool names from job requirements not in resume]
+  "strengths": ["tool/skill 1", "tool/skill 2"],
+  "gaps": ["Missing X tool", "Y experience required"],
+  "missingKeywords": ["tool1", "tool2"]
 }
 
-Respond ONLY with JSON object. No markdown, no explanation.`
+JSON only.`
 
   try {
     const message = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 500,
+      max_tokens: 800,
     })
 
     const content = message.choices[0]?.message?.content || "{}"
