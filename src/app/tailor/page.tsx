@@ -55,11 +55,8 @@ export default function TailorPage() {
         })
       })
 
-      console.log("Tailor API response status:", res.status)
-      
       if (res.ok) {
         const result = await res.json()
-        console.log("Got result with changeSummary:", !!result.changeSummary)
         
         let resume = (result.tailoredResume || "")
           .split("\n")
@@ -70,9 +67,7 @@ export default function TailorPage() {
         setTailoredResume(resume)
         setChangeSummary(result.changeSummary || "")
         
-        // Calculate ATS match for tailored resume
         if (data.jobDescription && resume) {
-          console.log("Calculating improved ATS match...")
           setAtsLoading(true)
           await calculateImprovedAts(resume, data.jobDescription)
         }
@@ -91,23 +86,16 @@ export default function TailorPage() {
 
   const calculateImprovedAts = async (resume: string, jobDesc: string) => {
     try {
-      console.log("Fetching improved ATS score...")
       const res = await fetch("/api/calculate-ats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resume,
-          jobDescription: jobDesc
-        })
+        body: JSON.stringify({ resume, jobDescription: jobDesc })
       })
 
       if (res.ok) {
         const result = await res.json()
-        console.log("Improved ATS result:", result)
         setImprovedAtsMatch(result.atsMatch)
-        console.log("Improved ATS set to:", result.atsMatch)
       } else {
-        console.error("Failed to calculate ATS:", res.status, await res.text())
         setImprovedAtsMatch(null)
       }
     } catch (err) {
@@ -118,9 +106,34 @@ export default function TailorPage() {
     }
   }
 
+  const renderResumeWithHighlights = (text: string) => {
+    const parts = text.split(/(\[\[\[HIGHLIGHT_START\]\]\].*?\[\[\[HIGHLIGHT_END\]\]\])/g)
+    
+    return (
+      <div className="prose max-w-none whitespace-pre-wrap bg-gray-50 p-6 rounded border border-gray-300 font-mono text-sm">
+        {parts.map((part, idx) => {
+          if (part.includes("[[[HIGHLIGHT_START]]]")) {
+            const highlighted = part
+              .replace("[[[HIGHLIGHT_START]]]", "")
+              .replace("[[[HIGHLIGHT_END]]]", "")
+            return (
+              <span key={idx} className="bg-yellow-200 font-semibold px-1 rounded">
+                {highlighted}
+              </span>
+            )
+          }
+          return <span key={idx}>{part}</span>
+        })}
+      </div>
+    )
+  }
+
   const downloadResume = () => {
+    const cleanText = tailoredResume
+      .replace(/\[\[\[HIGHLIGHT_START\]\]\]/g, "")
+      .replace(/\[\[\[HIGHLIGHT_END\]\]\]/g, "")
     const element = document.createElement("a")
-    const file = new Blob([tailoredResume], { type: "text/plain" })
+    const file = new Blob([cleanText], { type: "text/plain" })
     element.href = URL.createObjectURL(file)
     element.download = "tailored_resume.txt"
     document.body.appendChild(element)
@@ -129,7 +142,10 @@ export default function TailorPage() {
   }
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(tailoredResume)
+    const cleanText = tailoredResume
+      .replace(/\[\[\[HIGHLIGHT_START\]\]\]/g, "")
+      .replace(/\[\[\[HIGHLIGHT_END\]\]\]/g, "")
+    navigator.clipboard.writeText(cleanText)
     alert("Resume copied to clipboard!")
   }
 
@@ -143,7 +159,6 @@ export default function TailorPage() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
             
-            {/* ATS Improvement Section */}
             {originalAtsMatch !== null && (
               <div className="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
                 <h3 className="font-bold text-yellow-900 mb-3">ATS Match Improvement:</h3>
@@ -180,6 +195,10 @@ export default function TailorPage() {
                 </div>
               </div>
             )}
+
+            <div className="mb-4 p-3 bg-orange-50 border-l-4 border-orange-400 rounded">
+              <p className="text-sm text-orange-700"><strong>💡 Highlighted sections in yellow</strong> show where keywords were added or optimized for ATS.</p>
+            </div>
             
             <div className="flex gap-3 mb-6">
               <button
@@ -196,9 +215,7 @@ export default function TailorPage() {
               </button>
             </div>
 
-            <div className="prose max-w-none whitespace-pre-wrap bg-gray-50 p-6 rounded border border-gray-300 font-mono text-sm">
-              {tailoredResume}
-            </div>
+            {renderResumeWithHighlights(tailoredResume)}
           </div>
 
           <div className="text-center">

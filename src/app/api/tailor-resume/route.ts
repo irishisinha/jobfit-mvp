@@ -20,26 +20,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `CRITICAL: You MUST return the resume text EXACTLY as provided. Do NOT change formatting, spacing, line breaks, or structure in ANY way.
+    const prompt = `You are a resume optimizer. Your job is to CLEARLY mark all changes made to a resume.
 
-Your ONLY job: In the provided resume text, find places where job keywords can be naturally incorporated by replacing single words or short phrases. Make MINIMAL edits only.
+CRITICAL RULES:
+1. Return the resume with EXACT formatting preserved
+2. WHENEVER you add or modify text to include a keyword, wrap the CHANGED PART in [[[HIGHLIGHT_START]]] and [[[HIGHLIGHT_END]]]
+3. ONLY mark actual keyword additions - do not mark anything else
+4. If you replace a word, mark ONLY the new word
+5. Format: [[[HIGHLIGHT_START]]]new keyword here[[[HIGHLIGHT_END]]]
+6. NO OTHER CHANGES - preserve everything exactly
 
-RULES:
-- Return every single character, space, and line break EXACTLY as in original
-- NO reformatting whatsoever
-- NO reordering of sections
-- ONLY replace individual words/short phrases with synonyms that include job keywords
-- If you cannot incorporate a keyword naturally, leave the text unchanged
-- Do NOT add, remove, or rearrange anything
-
-ORIGINAL RESUME (return this VERBATIM with only inline keyword replacements):
+ORIGINAL RESUME:
 ${resume.substring(0, 3500)}
 
-JOB KEYWORDS TO INCORPORATE: ${missingKeywords.slice(0, 5).join(", ")}
+JOB KEYWORDS TO ADD: ${missingKeywords.slice(0, 5).join(", ")}
 
-Return the resume with ZERO changes except minimal keyword incorporation.`
+Return the resume with keywords strategically added and clearly marked with highlight tags.`
 
-    console.log("Calling Groq for tailored resume...")
+    console.log("Calling Groq for tailored resume with markers...")
     const message = await groq.chat.completions.create({
       messages: [
         {
@@ -53,25 +51,22 @@ Return the resume with ZERO changes except minimal keyword incorporation.`
     })
 
     const tailoredResume = message.choices[0]?.message?.content || ""
-    console.log("Tailored resume generated, length:", tailoredResume.length)
+    console.log("Tailored resume generated with markers")
 
-    // Generate summary by comparing original to tailored - ONLY real changes
+    // Generate detailed summary comparing resumes
     let changeSummary = ""
     try {
-      console.log("Generating summary by comparing resumes...")
-      const summaryPrompt = `You are comparing two resume versions to identify ONLY the actual changes made.
+      console.log("Generating summary of actual changes...")
+      const summaryPrompt = `Compare these two resume versions and list ONLY the ACTUAL changes made:
 
-ORIGINAL RESUME:
+ORIGINAL:
 ${resume.substring(0, 1500)}
 
-TAILORED RESUME:
+MODIFIED:
 ${tailoredResume.substring(0, 1500)}
 
-Analyze what ACTUALLY CHANGED between these two versions. Only list real changes - do NOT make up or speculate about changes.
-
-If you find actual keyword additions or replacements, describe them specifically. If minimal or no changes were made, say "Resume structure and content preserved - minimal keyword optimization made."
-
-Provide 2-3 bullet points of ONLY the actual changes you can identify.`
+List 2-4 SPECIFIC changes in format: "Added 'keyword' in [section]" or "Changed 'old phrase' to 'new phrase'"
+Only list real differences you can identify. Be specific.`
 
       const summaryMessage = await groq.chat.completions.create({
         messages: [
@@ -85,11 +80,11 @@ Provide 2-3 bullet points of ONLY the actual changes you can identify.`
         max_tokens: 300,
       })
 
-      changeSummary = summaryMessage.choices[0]?.message?.content || "Resume optimized with minimal keyword additions."
-      console.log("Summary generated, length:", changeSummary.length)
+      changeSummary = summaryMessage.choices[0]?.message?.content || ""
+      console.log("Summary generated")
     } catch (summaryErr) {
-      console.error("Summary generation failed, continuing without it:", summaryErr)
-      changeSummary = "Resume optimized for job fit."
+      console.error("Summary generation failed:", summaryErr)
+      changeSummary = "Resume optimized with keyword additions."
     }
 
     return NextResponse.json({
