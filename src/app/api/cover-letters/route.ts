@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
 
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { resume, jobDescription, tone = "professional", jobTitle, company, strengths = [], gaps = [], missingKeywords = [] } = await req.json()
+    const { resume, jobDescription, tone = "professional", jobTitle, company, strengths = [], gaps = [] } = await req.json()
 
     if (!resume?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
@@ -22,12 +22,13 @@ export async function POST(req: NextRequest) {
 
     const prompt = `Write a truthful, strategic cover letter. ONLY mention skills explicitly in the resume. NEVER claim false expertise.
 
-RESUME:
-${resume.substring(0, 1500)}
+COMPLETE RESUME:
+${resume}
 
 JOB: ${jobTitle} at ${company}
-DESCRIPTION:
-${jobDescription.substring(0, 1000)}
+
+JOB DESCRIPTION:
+${jobDescription}
 
 STRENGTHS TO HIGHLIGHT: ${strengths.join(", ")}
 GAPS TO ADDRESS: ${gaps.join(", ")}
@@ -44,11 +45,12 @@ Write a 3-4 paragraph cover letter (250-300 words) that:
 
 CRITICAL: Only mention REAL skills from resume. Dishonesty will backfire.
 
-Return ONLY the cover letter text, no headers.`
+Return ONLY the cover letter text, no headers or formatting.`
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 1024,
+      max_tokens: 800,
+      temperature: 0,
       messages: [{ role: "user", content: prompt }],
     })
 
@@ -57,16 +59,12 @@ Return ONLY the cover letter text, no headers.`
       return NextResponse.json({ error: "Empty response from Groq" }, { status: 500 })
     }
 
-    return NextResponse.json({ coverLetter: completion.choices[0]?.message?.content || "" })
-  } catch (error) {
+    return NextResponse.json({ coverLetter: content })
+  } catch (error: any) {
     console.error("Cover letter error:", error)
     return NextResponse.json({
       error: "Failed to generate cover letter",
-      message: error instanceof Error ? error.message : String(error),
+      details: error.message,
     }, { status: 500 })
   }
 }
-
-
-
-

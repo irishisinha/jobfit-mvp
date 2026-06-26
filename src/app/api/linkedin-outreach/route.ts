@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+﻿import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
 
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { resume, jobDescription, jobTitle, company, recipientName, recipientRole } = await req.json()
+    const { resume, jobDescription, jobTitle, company, strengths = [] } = await req.json()
 
     if (!resume?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
@@ -20,31 +20,33 @@ export async function POST(req: NextRequest) {
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    const prompt = `Write a SHORT, personalized LinkedIn connection message (150-200 words max).
+    const prompt = `Write a SHORT, personalized LinkedIn connection message (120-160 words max).
 
-RESUME:
-${resume.substring(0, 1000)}
+COMPLETE RESUME:
+${resume}
 
 TARGET JOB: ${jobTitle} at ${company}
 
 JOB DESCRIPTION:
-${jobDescription.substring(0, 800)}
+${jobDescription}
 
-RECIPIENT: ${recipientName || "Hiring Manager"} (${recipientRole || "Not specified"})
+KEY STRENGTHS: ${strengths.slice(0, 3).join(", ")}
 
 Write a message that:
-1. Opens with specific reason for connecting (reference company or role)
-2. Briefly mentions ONE relevant achievement from resume
-3. Shows genuine interest in THIS specific opportunity
-4. Ends with soft call-to-action (chat, advice, learn more)
-5. Keep it SHORT and conversational
+1. Opens with specific reason for connecting (reference company mission or role)
+2. Mention ONE relevant achievement from the resume
+3. Show genuine interest in THIS opportunity
+4. Soft call-to-action ("I'd love to learn more..." or "Would appreciate your insights...")
+5. Keep it SHORT, conversational, authentic
 6. NO corporate jargon or buzzwords
+7. NO false claims - only mention REAL skills/experience
 
-Return ONLY the message text, ready to paste into LinkedIn.`
+Return ONLY the message text, ready to paste into LinkedIn. No formatting or headers.`
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 512,
+      max_tokens: 500,
+      temperature: 0,
       messages: [{ role: "user", content: prompt }],
     })
 
@@ -54,11 +56,11 @@ Return ONLY the message text, ready to paste into LinkedIn.`
     }
 
     return NextResponse.json({ linkedInMessage: content })
-  } catch (error) {
+  } catch (error: any) {
     console.error("LinkedIn error:", error)
     return NextResponse.json({
       error: "Failed to generate LinkedIn message",
-      message: error instanceof Error ? error.message : String(error),
+      details: error.message,
     }, { status: 500 })
   }
 }
