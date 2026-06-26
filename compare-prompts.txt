@@ -1,0 +1,27 @@
+===== FIRST ATS CALL (in /api/assess) =====
+Location: src/app/api/assess/route.ts
+
+Prompt analyzes ORIGINAL resume with job description.
+Uses Groq to estimate "fit score" and "atsMatch".
+Score range: 0-100
+
+===== SECOND ATS CALL (in /api/calculate-ats) =====
+Location: src/app/api/calculate-ats/route.ts
+
+Prompt analyzes SAME resume + keywords added (tailored).
+Uses Groq to estimate ATS match.
+Score range: 0-100
+
+THE PROBLEM:
+- Both use temperature=0 (deterministic)
+- BUT different prompts = different scoring scales
+- Groq might score original resume conservatively (36%)
+- Groq might score tailored resume optimistically (85%)
+- The "improvement" is just Groq being inconsistent
+
+ANALOGY:
+- Ask Person A: "Rate this resume 0-100"
+- Person A says: "36/100 - missing keywords"
+- Ask Person B: "Rate this tailored resume 0-100"
+- Person B says: "85/100 - has keywords now!"
+- Same document, different evaluators = big difference

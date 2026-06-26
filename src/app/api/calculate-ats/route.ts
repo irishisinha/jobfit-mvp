@@ -1,9 +1,15 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
-import Groq from "groq-sdk"
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-})
+// SAME logic as in assess endpoint - simple keyword matching
+function calculateAtsMatch(resume: string, jobDescription: string): number {
+  const jobKeywords = jobDescription.toLowerCase().split(/\W+/).filter(w => w.length > 3)
+  const resumeKeywords = resume.toLowerCase().split(/\W+/)
+  const resumeSet = new Set(resumeKeywords)
+  
+  const matches = jobKeywords.filter(k => resumeSet.has(k)).length
+  const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
+  return Math.min(100, Math.max(20, percentage))
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,44 +19,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are an ATS (Applicant Tracking System) expert. 
+    console.log("Calculating ATS match with keyword matching (same logic as assess)...")
     
-Analyze how well this resume matches the job description from an ATS perspective (keyword matching, format compatibility, skill alignment).
-
-RESUME:
-${resume}
-
-JOB DESCRIPTION:
-${jobDescription}
-
-Be realistic and conservative in your scoring. Most resumes match 20-70% of ATS criteria.
-
-Respond with ONLY a number between 0-100 representing the ATS match score. No explanation, just the number.`
-
-    console.log("ATS calculation starting...")
+    const atsMatch = calculateAtsMatch(resume, jobDescription)
     
-    const message = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      model: "llama-3.1-8b-instant",
-      temperature: 0,
-      max_tokens: 10,
-    })
-
-    const scoreText = message.choices[0]?.message?.content?.trim() || "50"
-    let atsMatch = Math.min(100, Math.max(0, parseInt(scoreText)))
-    
-    // Cap unrealistic scores to be conservative
-    // Max improvement from keyword additions is typically 15-20 points
-    if (isNaN(atsMatch)) {
-      atsMatch = 50
-    }
-    
-    console.log("ATS score calculated:", atsMatch)
+    console.log("ATS score:", atsMatch)
 
     return NextResponse.json({ atsMatch })
   } catch (error: any) {
