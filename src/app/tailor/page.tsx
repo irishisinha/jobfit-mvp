@@ -186,29 +186,36 @@ export default function TailorPage() {
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
             
             {originalAtsMatch !== null && (
-              <div className="mb-8 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-                <h3 className="font-bold text-yellow-900 mb-3">ATS Match Improvement:</h3>
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-700">{originalAtsMatch}%</div>
-                    <div className="text-sm text-yellow-600">Before Tailoring</div>
+              <div className="mb-8">
+                <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded mb-2">
+                  <h3 className="font-bold text-yellow-900 mb-3">ATS Match Estimate:</h3>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-700">{originalAtsMatch}%</div>
+                      <div className="text-sm text-yellow-600">Before</div>
+                    </div>
+                    <div className="text-2xl text-yellow-400">→</div>
+                    <div className="text-center">
+                      {atsLoading ? (
+                        <div className="text-sm text-yellow-600">Calculating...</div>
+                      ) : improvedAtsMatch !== null ? (
+                        <>
+                          <div className="text-2xl font-bold text-green-700">{improvedAtsMatch}%</div>
+                          <div className="text-sm text-green-600">After</div>
+                          <div className="text-xs text-green-600 mt-1">
+                            ({improvedAtsMatch > originalAtsMatch ? '+' : ''}{improvedAtsMatch - originalAtsMatch}%)
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-red-600">Could not calculate</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-2xl text-yellow-400">→</div>
-                  <div className="text-center">
-                    {atsLoading ? (
-                      <div className="text-sm text-yellow-600">Calculating ATS score...</div>
-                    ) : improvedAtsMatch !== null ? (
-                      <>
-                        <div className="text-2xl font-bold text-green-700">{improvedAtsMatch}%</div>
-                        <div className="text-sm text-green-600">After Tailoring</div>
-                        <div className="text-xs text-green-600 mt-1">
-                          ({improvedAtsMatch > originalAtsMatch ? '+' : ''}{improvedAtsMatch - originalAtsMatch}%)
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-sm text-red-600">Could not calculate</div>
-                    )}
-                  </div>
+                </div>
+                <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
+                  <p className="text-xs text-blue-700">
+                    <strong>Note:</strong> ATS scores are estimates based on keyword analysis. Actual ATS systems vary by company. Improvements typically range 10-20% from keyword optimization. This shows potential improvement from tailoring.
+                  </p>
                 </div>
               </div>
             )}
@@ -254,5 +261,6 @@ export default function TailorPage() {
     </>
   )
 }
+
 
 
