@@ -108,23 +108,48 @@ export default function TailorPage() {
   }
 
   const renderResumeWithHighlights = (text: string) => {
-    const parts = text.split(/(\[\[\[HIGHLIGHT_START\]\]\].*?\[\[\[HIGHLIGHT_END\]\]\])/g)
-    
+    // Split by highlight markers and preserve the markers in the result
+    const regex = /\[\[\[HIGHLIGHT_START\]\]\](.*?)\[\[\[HIGHLIGHT_END\]\]\]/gs
+    const parts: Array<{type: 'text' | 'highlight', content: string}> = []
+    let lastIndex = 0
+    let match
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: text.substring(lastIndex, match.index)
+        })
+      }
+      parts.push({
+        type: 'highlight',
+        content: match[1]
+      })
+      lastIndex = match.index + match[0].length
+    }
+
+    if (lastIndex < text.length) {
+      parts.push({
+        type: 'text',
+        content: text.substring(lastIndex)
+      })
+    }
+
+    if (parts.length === 0) {
+      parts.push({ type: 'text', content: text })
+    }
+
     return (
-      <div className="prose max-w-none whitespace-pre-wrap bg-gray-50 p-6 rounded border border-gray-300 font-mono text-sm">
-        {parts.map((part, idx) => {
-          if (part.includes("[[[HIGHLIGHT_START]]]")) {
-            const highlighted = part
-              .replace("[[[HIGHLIGHT_START]]]", "")
-              .replace("[[[HIGHLIGHT_END]]]", "")
-            return (
-              <span key={idx} className="bg-yellow-200 font-semibold px-1 rounded">
-                {highlighted}
-              </span>
-            )
-          }
-          return <span key={idx}>{part}</span>
-        })}
+      <div className="whitespace-pre-wrap bg-gray-50 p-6 rounded border border-gray-300 font-mono text-sm leading-relaxed">
+        {parts.map((part, idx) => (
+          part.type === 'highlight' ? (
+            <span key={idx} className="bg-yellow-300 font-bold px-0.5 rounded" style={{color: '#1a1a1a'}}>
+              {part.content}
+            </span>
+          ) : (
+            <span key={idx}>{part.content}</span>
+          )
+        ))}
       </div>
     )
   }
@@ -229,4 +254,5 @@ export default function TailorPage() {
     </>
   )
 }
+
 
