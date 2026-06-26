@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import Groq from "groq-sdk"
@@ -20,24 +20,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are a resume optimizer. Your job is to CLEARLY mark all changes made to a resume.
+    const keywords = missingKeywords.slice(0, 5)
+    const prompt = `TASK: Add job keywords to resume and mark additions.
 
-CRITICAL RULES:
-1. Return the resume with EXACT formatting preserved
-2. WHENEVER you add or modify text to include a keyword, wrap the CHANGED PART in [[[HIGHLIGHT_START]]] and [[[HIGHLIGHT_END]]]
-3. ONLY mark actual keyword additions - do not mark anything else
-4. If you replace a word, mark ONLY the new word
-5. Format: [[[HIGHLIGHT_START]]]new keyword here[[[HIGHLIGHT_END]]]
-6. NO OTHER CHANGES - preserve everything exactly
-
-ORIGINAL RESUME:
+RESUME TO MODIFY:
 ${resume.substring(0, 3500)}
 
-JOB KEYWORDS TO ADD: ${missingKeywords.slice(0, 5).join(", ")}
+KEYWORDS TO ADD (pick 2-3 most relevant): ${keywords.join(", ")}
 
-Return the resume with keywords strategically added and clearly marked with highlight tags.`
+INSTRUCTIONS:
+1. Keep resume format EXACTLY the same
+2. Find relevant places to naturally add keywords from the list
+3. Wrap ONLY the added/modified text in markers: [[[HIGHLIGHT_START]]]text[[[HIGHLIGHT_END]]]
+4. Add 2-3 keyword additions maximum
+5. Return the full modified resume with markers
 
-    console.log("Calling Groq for tailored resume with markers...")
+Example: If adding "leadership", you might change "managed team" to "managed team with [[[HIGHLIGHT_START]]]leadership[[[HIGHLIGHT_END]]]"
+
+NOW modify the resume and return it with markers.`
+
+    console.log("Calling Groq for tailored resume...")
+    console.log("Keywords to add:", keywords.join(", "))
+    
     const message = await groq.chat.completions.create({
       messages: [
         {
@@ -47,26 +51,27 @@ Return the resume with keywords strategically added and clearly marked with high
       ],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 2000,
+      max_tokens: 2500,
     })
 
     const tailoredResume = message.choices[0]?.message?.content || ""
-    console.log("Tailored resume generated with markers")
+    console.log("Response length:", tailoredResume.length)
+    console.log("Has highlights:", tailoredResume.includes("[[[HIGHLIGHT_START]]]"))
+    console.log("First 500 chars:", tailoredResume.substring(0, 500))
 
-    // Generate detailed summary comparing resumes
+    // Generate summary
     let changeSummary = ""
     try {
-      console.log("Generating summary of actual changes...")
-      const summaryPrompt = `Compare these two resume versions and list ONLY the ACTUAL changes made:
+      const summaryPrompt = `Compare original and modified resume. List the 2-3 keyword additions made:
 
-ORIGINAL:
-${resume.substring(0, 1500)}
+ORIGINAL (excerpt):
+${resume.substring(0, 1000)}
 
-MODIFIED:
-${tailoredResume.substring(0, 1500)}
+MODIFIED (excerpt):
+${tailoredResume.substring(0, 1000)}
 
-List 2-4 SPECIFIC changes in format: "Added 'keyword' in [section]" or "Changed 'old phrase' to 'new phrase'"
-Only list real differences you can identify. Be specific.`
+Format: "• Added '[keyword]' to highlight [section]" 
+Only list actual changes visible in both versions.`
 
       const summaryMessage = await groq.chat.completions.create({
         messages: [
@@ -81,10 +86,8 @@ Only list real differences you can identify. Be specific.`
       })
 
       changeSummary = summaryMessage.choices[0]?.message?.content || ""
-      console.log("Summary generated")
     } catch (summaryErr) {
       console.error("Summary generation failed:", summaryErr)
-      changeSummary = "Resume optimized with keyword additions."
     }
 
     return NextResponse.json({

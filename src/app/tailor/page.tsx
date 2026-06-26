@@ -57,6 +57,7 @@ export default function TailorPage() {
 
       if (res.ok) {
         const result = await res.json()
+        console.log("Raw API response:", result.tailoredResume?.substring(0, 500))
         
         let resume = (result.tailoredResume || "")
           .split("\n")
@@ -228,3 +229,4 @@ export default function TailorPage() {
     </>
   )
 }
+
