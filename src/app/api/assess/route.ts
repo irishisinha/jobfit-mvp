@@ -75,58 +75,47 @@ function calculateAtsMatch(resume: string, jobDescription: string): number {
 async function assessJob(resume: string, jobDescription: string) {
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-  const prompt = `Extract gaps by comparing resume to job requirements.
+  const prompt = `Respond with ONLY valid JSON. No other text.
 
-RESUME TEXT:
+RESUME:
 ${resume}
 
-JOB DESCRIPTION TEXT:
+JOB:
 ${jobDescription}
 
-ALGORITHM:
-1. Extract from resume: All technical tools, software, programming languages, frameworks, platforms, certifications, degrees, and years of specific experience mentioned
-2. Extract from job: All technical tools, software, programming languages, frameworks, platforms, certifications, degrees, and years of experience required or stated as mandatory
-3. Match: For each job requirement, check if resume contains it (exact mention or equivalent domain experience)
-4. Gap: Flag only if requirement is in job AND not in resume AND not transferable
-5. Ignore: Anything marked "preferred", "ideal", "nice-to-have", soft skills, industry preferences
-
-Output JSON with three arrays:
-- strengths: Key technical strengths from resume (not generic)
-- gaps: Only missing required skills/tools/certifications/experience
-- missingKeywords: Tool/skill names that are required but missing
-
-Format:
+Extract as JSON:
 {
-  "strengths": ["tool/skill 1", "tool/skill 2"],
-  "gaps": ["Missing X", "Y years experience required"],
-  "missingKeywords": ["tool1", "tool2"]
+  "strengths": [list 3-4 key technical skills/tools from resume],
+  "gaps": [list only if tool/skill is required in job but missing from resume],
+  "missingKeywords": [list tool names from job requirements not in resume]
 }
 
-Only JSON, no other text.`
+Respond ONLY with JSON object. No markdown, no explanation.`
 
-  const message = await groq.chat.completions.create({
-    messages: [{ role: "user", content: prompt }],
-    model: "llama-3.1-8b-instant",
-    temperature: 0,
-    max_tokens: 1500,
-  })
-
-  const content = message.choices[0]?.message?.content || ""
-  
   try {
-    const data = JSON.parse(content)
-    return {
-      strengths: data.strengths || [],
-      gaps: data.gaps || [],
-      missingKeywords: data.missingKeywords || [],
+    const message = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 500,
+    })
+
+    const content = message.choices[0]?.message?.content || "{}"
+    
+    try {
+      const data = JSON.parse(content)
+      return {
+        strengths: Array.isArray(data.strengths) ? data.strengths : [],
+        gaps: Array.isArray(data.gaps) ? data.gaps : [],
+        missingKeywords: Array.isArray(data.missingKeywords) ? data.missingKeywords : [],
+      }
+    } catch (e) {
+      console.error("Parse error:", content.substring(0, 200))
+      return { strengths: [], gaps: [], missingKeywords: [] }
     }
-  } catch (e) {
-    console.error("Parse failed:", content.substring(0, 300))
-    return {
-      strengths: [],
-      gaps: [],
-      missingKeywords: [],
-    }
+  } catch (err: any) {
+    console.error("Groq error:", err.message)
+    return { strengths: [], gaps: [], missingKeywords: [] }
   }
 }
 
@@ -143,15 +132,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await assessJob(resume, jobDescription)
-    
     const atsMatch = calculateAtsMatch(resume, jobDescription)
 
     const fitScore = 
       data.gaps.length === 0 ? 95 :
       data.gaps.length === 1 ? 80 :
       data.gaps.length === 2 ? 65 :
-      data.gaps.length === 3 ? 50 :
-      35
+      data.gaps.length === 3 ? 50 : 35
 
     const successProbability = 
       fitScore >= 80 ? 70 + Math.random() * 15 :
@@ -177,7 +164,7 @@ export async function POST(req: NextRequest) {
       missingKeywords: data.missingKeywords,
     })
   } catch (error: any) {
-    console.error("Assess error:", error)
+    console.error("Assess error:", error.message)
     return NextResponse.json({
       verdict: "Moderate Fit",
       fitScore: 50,
