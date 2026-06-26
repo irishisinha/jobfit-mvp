@@ -1,18 +1,143 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+﻿import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "../../../lib/auth"
 import Groq from "groq-sdk"
 
 export const maxDuration = 60
 
-function calculateAtsMatch(resume: string, jobDescription: string): number {
-  const jobKeywords = jobDescription.toLowerCase().split(/\W+/).filter(w => w.length > 3)
-  const resumeKeywords = resume.toLowerCase().split(/\W+/)
-  const resumeSet = new Set(resumeKeywords)
+// Normalize text for better keyword matching
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    // Remove hyphens (e-commerce → ecommerce)
+    .replace(/-/g, '')
+    // Remove apostrophes (it's → its)
+    .replace(/'/g, '')
+    // Remove extra spaces
+    .trim()
+}
+
+// Common abbreviation mappings
+const ABBREVIATIONS: { [key: string]: string[] } = {
+  'bu': ['business', 'unit'],
+  'c2c': ['consumer', 'to', 'consumer'],
+  'b2b': ['business', 'to', 'business'],
+  'b2c': ['business', 'to', 'consumer'],
+  'crm': ['customer', 'relationship', 'management'],
+  'erp': ['enterprise', 'resource', 'planning'],
+  'api': ['application', 'programming', 'interface'],
+  'kpi': ['key', 'performance', 'indicator'],
+  'roi': ['return', 'on', 'investment'],
+  'pl': ['profit', 'loss'],
+  'saas': ['software', 'service'],
+}
+
+// Expand abbreviations in text
+function expandAbbreviations(words: string[]): string[] {
+  const expanded: string[] = []
   
-  const matches = jobKeywords.filter(k => resumeSet.has(k)).length
-  const percentage = Math.round((matches / Math.max(jobKeywords.length, 1)) * 100)
+  for (const word of words) {
+    if (ABBREVIATIONS[word]) {
+      expanded.push(...ABBREVIATIONS[word])
+    } else {
+      expanded.push(word)
+    }
+  }
+  
+  return expanded
+}
+
+// Basic stemming - handle common suffix variations
+function simpleStem(word: string): string {
+  // Remove common suffixes
+  if (word.endsWith('ing')) return word.slice(0, -3)
+  if (word.endsWith('ed')) return word.slice(0, -2)
+  if (word.endsWith('er')) return word.slice(0, -2)
+  if (word.endsWith('s')) return word.slice(0, -1)
+  return word
+}
+
+function calculateAtsMatch(resume: string, jobDescription: string): number {
+  // Normalize both texts
+  const normalizedJob = normalizeText(jobDescription)
+  const normalizedResume = normalizeText(resume)
+  
+  // Extract words (> 3 chars to avoid "the", "and", etc)
+  let jobKeywords = normalizedJob.split(/\W+/).filter(w => w.length > 3)
+  let resumeKeywords = normalizedResume.split(/\W+/).filter(w => w.length > 3)
+  
+  // Expand abbreviations
+  jobKeywords = expandAbbreviations(jobKeywords)
+  resumeKeywords = expandAbbreviations(resumeKeywords)
+  
+  // Apply stemming for better matching
+  const jobStemmed = new Set(jobKeywords.map(simpleStem))
+  const resumeStemmed = new Set(resumeKeywords.map(simpleStem))
+  
+  // Count matches (keywords that appear in both)
+  const matches = Array.from(jobStemmed).filter(k => resumeStemmed.has(k)).length
+  
+  // Calculate percentage based on job requirements
+  const percentage = Math.round((matches / Math.max(jobStemmed.size, 1)) * 100)
+  
+  // Clamp between 20-100
   return Math.min(100, Math.max(20, percentage))
+}
+
+async function assessJob(resume: string, jobDescription: string) {
+  const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+  })
+
+  const prompt = `Analyze this resume against the job description. Identify:
+1. Key strengths matching the job
+2. Experience gaps
+3. Missing keywords/skills
+
+RESUME:
+${resume}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+Respond in this EXACT JSON format:
+{
+  "strengths": ["strength1", "strength2", "strength3"],
+  "gaps": ["gap1", "gap2"],
+  "missingKeywords": ["keyword1", "keyword2", "keyword3"]
+}
+
+Respond ONLY with JSON, no other text.`
+
+  const message = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    model: "llama-3.1-8b-instant",
+    temperature: 0,
+    max_tokens: 1000,
+  })
+
+  const content = message.choices[0]?.message?.content || ""
+  
+  try {
+    const data = JSON.parse(content)
+    return {
+      strengths: data.strengths || [],
+      gaps: data.gaps || [],
+      missingKeywords: data.missingKeywords || [],
+    }
+  } catch (e) {
+    console.error("Parse failed, raw:", content.substring(0, 300))
+    return {
+      strengths: [],
+      gaps: [],
+      missingKeywords: [],
+    }
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -22,67 +147,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { resume, jobDescription, jobTitle, company } = await req.json()
-
+    const { resume, jobDescription } = await req.json()
     if (!resume?.trim() || !jobDescription?.trim()) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    const data = await assessJob(resume, jobDescription)
 
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      max_tokens: 1500,
-      temperature: 0,
-      messages: [{
-        role: "user",
-        content: `Analyze resume match for: ${jobTitle} at ${company}
-
-CANDIDATE RESUME:
-${resume}
-
-REQUIRED SKILLS AND EXPERIENCE:
-${jobDescription}
-
-Scoring: 0-100 based on how well the resume matches the job requirements.
-- 90-100: Has almost all requirements with strong experience
-- 75-89: Has core requirements with relevant experience
-- 60-74: Has some requirements, missing some key skills
-- 40-59: Significant gaps, would need substantial learning
-- Below 40: Poor match
-
-Respond ONLY with a JSON object. Analyze carefully and score accurately based on the specific resume and job.
-
-Example format (replace values):
-{"fitScore": 75, "strengths": ["specific skill from resume"], "gaps": ["missing skill"], "missingKeywords": ["keyword"]}`
-      }],
-    })
-
-    let content = completion.choices[0]?.message?.content || ""
-    
-    // Clean up response
-    content = content.replace(/```json\n?|\n?```/g, "").replace(/^```|```$/g, "").trim()
-
-    let data: any = {
-      fitScore: 50,
-      strengths: [],
-      gaps: [],
-      missingKeywords: []
-    }
-
-    // Try to parse JSON
-    try {
-      const parsed = JSON.parse(content)
-      if (typeof parsed.fitScore === "number") data.fitScore = parsed.fitScore
-      if (Array.isArray(parsed.strengths)) data.strengths = parsed.strengths.filter((s: any) => s)
-      if (Array.isArray(parsed.gaps)) data.gaps = parsed.gaps.filter((g: any) => g)
-      if (Array.isArray(parsed.missingKeywords)) data.missingKeywords = parsed.missingKeywords.filter((k: any) => k)
-    } catch (e) {
-      console.error("Parse failed, raw:", content.substring(0, 300))
-    }
-
-    const fitScore = Math.min(100, Math.max(0, data.fitScore))
     const atsMatch = calculateAtsMatch(resume, jobDescription)
+
+    const fitScore = 
+      data.gaps.length === 0 ? 95 :
+      data.gaps.length === 1 ? 80 :
+      data.gaps.length === 2 ? 65 :
+      data.gaps.length === 3 ? 50 :
+      35
 
     const successProbability = 
       fitScore >= 80 ? 70 + Math.random() * 15 :
