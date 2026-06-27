@@ -45,13 +45,17 @@ export default function ResumesPage() {
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     setUploading(true)
+    setDebugMsg("")
     try {
+      console.log("Starting upload for:", file.name)
       const text = await extractTextFromFile(file)
+      console.log("Extracted text length:", text.length)
+      
       const resumeName = file.name.replace(/\.[^/.]+$/, "")
 
       const saveRes = await fetch("/api/resumes", {
@@ -60,15 +64,19 @@ export default function ResumesPage() {
         body: JSON.stringify({ name: resumeName, content: text })
       })
 
+      console.log("API response status:", saveRes.status)
+      const data = await saveRes.json()
+      console.log("API response:", data)
+
       if (saveRes.ok) {
         await loadResumes()
-        setDebugMsg(`"${resumeName}" uploaded successfully`)
+        setDebugMsg(`✓ "${resumeName}" uploaded successfully`)
       } else {
-        throw new Error("Failed to save")
+        throw new Error(data.error || "Failed to save")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error)
-      setDebugMsg("Failed to upload resume")
+      setDebugMsg(`❌ Error: ${error.message}`)
     } finally {
       setUploading(false)
     }
@@ -198,3 +206,4 @@ export default function ResumesPage() {
     </>
   )
 }
+
