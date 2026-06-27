@@ -1,12 +1,24 @@
-"use client"
+﻿"use client"
 
-// @ts-nocheck
-import * as pdfjsLib from "pdfjs-dist"
-import * as mammoth from "mammoth"
+let pdfjsLib: any = null
+let mammothLib: any = null
 
-// Set up PDF.js worker - use CDN version
-if (typeof window !== "undefined") {
+async function getPdfjsLib() {
+  if (pdfjsLib) return pdfjsLib
+  if (typeof window === "undefined") return null
+  
+  pdfjsLib = await import("pdfjs-dist")
+  // Set worker AFTER import, only on client
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  return pdfjsLib
+}
+
+async function getMammothLib() {
+  if (mammothLib) return mammothLib
+  if (typeof window === "undefined") return null
+  
+  mammothLib = await import("mammoth")
+  return mammothLib
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
@@ -24,11 +36,14 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return await extractDocxText(file)
   }
 
-  throw new Error(`Unsupported file format: ${file.type}`)
+  throw new Error(`Unsupported format: use TXT, PDF, or DOCX`)
 }
 
 async function extractPdfText(file: File): Promise<string> {
   try {
+    const pdfjsLib = await getPdfjsLib()
+    if (!pdfjsLib) throw new Error("PDF.js not available")
+    
     const arrayBuffer = await file.arrayBuffer()
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
     let text = ""
@@ -42,18 +57,19 @@ async function extractPdfText(file: File): Promise<string> {
 
     return text.trim()
   } catch (error) {
-    console.error("PDF extraction error:", error)
-    throw new Error("Failed to extract text from PDF")
+    throw new Error(`Failed to extract PDF: ${error}`)
   }
 }
 
 async function extractDocxText(file: File): Promise<string> {
   try {
+    const mammoth = await getMammothLib()
+    if (!mammoth) throw new Error("DOCX parser not available")
+    
     const arrayBuffer = await file.arrayBuffer()
     const result = await mammoth.extractRawText({ arrayBuffer })
-    return result.value.trim()
+    return result.value
   } catch (error) {
-    console.error("DOCX extraction error:", error)
-    throw new Error("Failed to extract text from DOCX")
+    throw new Error(`Failed to extract DOCX: ${error}`)
   }
 }
