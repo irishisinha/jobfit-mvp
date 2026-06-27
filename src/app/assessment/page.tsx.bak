@@ -47,8 +47,6 @@ export default function Assessment() {
   const [coverLetter, setCoverLetter] = useState("")
   const [tailoredResume, setTailoredResume] = useState("")
   const [linkedInMessage, setLinkedInMessage] = useState("")
-  const [gapQuestions, setGapQuestions] = useState<Array<{mentioned: string; canYouAdd: string}>>([])
-  const [loadingGaps, setLoadingGaps] = useState(false)
   const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "warm">("professional")
 
   const saveToLocalStorage = (assessment: any) => {
@@ -178,26 +176,6 @@ export default function Assessment() {
       if (!assessRes.ok) throw new Error("Assessment failed")
       const assessData = await assessRes.json()
       setResult(assessData)
-
-      // Fetch gap questions for resume enhancement
-      try {
-        setLoadingGaps(true)
-        const gapsRes = await fetch("/api/resume-gaps", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            resume: topResume.content,
-            jobDescription,
-          }),
-        })
-        const gapsData = await gapsRes.json()
-        setGapQuestions(gapsData.gaps || [])
-      } catch (e) {
-        console.error("Gap questions error:", e)
-        setGapQuestions([])
-      } finally {
-        setLoadingGaps(false)
-      }
       
        try {
         const saveRes = await fetch("/api/assessments", {
@@ -510,19 +488,6 @@ export default function Assessment() {
               </div>
 
               <div>
-              {gapQuestions.length > 0 && (
-                <div className="mb-6 border-t pt-6">
-                  <h3 className="text-lg font-bold text-blue-600 mb-3">📝 Enhance Your Resume</h3>
-                  <div className="space-y-3">
-                    {gapQuestions.map((q, i) => (
-                      <div key={i} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <p className="font-semibold text-sm text-blue-900 mb-2">You mentioned: <em>{q.mentioned}</em></p>
-                        <p className="text-sm text-blue-800"><strong>Can you add:</strong> {q.canYouAdd}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
                 <h3 className="text-lg font-bold text-yellow-600 mb-3">Keywords to Emphasize</h3>
                 <div className="flex flex-wrap gap-2">
                   {(result.missingKeywords || []).map((k, i) => (
