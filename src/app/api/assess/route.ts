@@ -77,9 +77,9 @@ async function assessJob(resume: string, jobDescription: string) {
 
   const prompt = `Extract resume gaps against job requirements. Respond ONLY with JSON.
 
-RESUME: ${resume.substring(0, 2000)}
+RESUME: ${resume}
 
-JOB: ${jobDescription.substring(0, 1500)}
+JOB: ${jobDescription}
 
 Rules:
 - Strengths: 3-4 key technical tools/skills from resume
