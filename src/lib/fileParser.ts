@@ -1,6 +1,29 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import * as mammoth from 'mammoth'
 
+// Polyfill DOMMatrix if not available (required by PDF.js in some environments)
+if (typeof window !== 'undefined' && !globalThis.DOMMatrix) {
+  globalThis.DOMMatrix = class DOMMatrix {
+    constructor(init?: string | number[]) {
+      this.a = 1
+      this.b = 0
+      this.c = 0
+      this.d = 1
+      this.e = 0
+      this.f = 0
+    }
+    a: number
+    b: number
+    c: number
+    d: number
+    e: number
+    f: number
+    multiply() { return this }
+    inverse() { return this }
+    transformPoint() { return { x: 0, y: 0 } }
+  } as any
+}
+
 // Set up PDF.js worker. Served from /public (copied from node_modules via the
 // "postinstall:worker" script) since modern pdfjs-dist versions ship a .mjs
 // worker that the cdnjs mirror doesn't reliably have for every release.
