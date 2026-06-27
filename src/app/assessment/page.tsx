@@ -49,6 +49,10 @@ export default function Assessment() {
   const [linkedInMessage, setLinkedInMessage] = useState("")
   const [gapQuestions, setGapQuestions] = useState<Array<{mentioned: string; canYouAdd: string}>>([])
   const [loadingGaps, setLoadingGaps] = useState(false)
+    const [coverLetterLoading, setCoverLetterLoading] = useState(false)
+  const [tailoredLoading, setTailoredLoading] = useState(false)
+  const [linkedInLoading, setLinkedInLoading] = useState(false)
+
   const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "warm">("professional")
 
   const saveToLocalStorage = (assessment: any) => {
@@ -333,7 +337,7 @@ export default function Assessment() {
     }
   }
 
-  const handleGenerateLinkedIn = async () => {
+    const handleGenerateLinkedIn = async () => {
     if (!result || !selectedResume) return
     try {
       const res = await fetch("/api/linkedin-outreach", {
@@ -540,7 +544,12 @@ export default function Assessment() {
                   <button onClick={() => setCoverLetterTone("enthusiastic")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "enthusiastic" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Enthusiastic</button>
                   <button onClick={() => setCoverLetterTone("warm")} className={`px-3 py-1 rounded text-sm ${coverLetterTone === "warm" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Warm</button>
                 </div>
-                {coverLetter ? (
+                {coverLetterLoading ? (
+                  <div className="flex flex-col items-center justify-center h-48">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                    <p className="text-sm text-gray-600">Generating cover letter...</p>
+                  </div>
+                ) : coverLetter ? (
                   <div className="space-y-2">
                     <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                     <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">â¬‡ï¸ Download</button>
@@ -552,7 +561,12 @@ export default function Assessment() {
 
               <div className="bg-white rounded-lg p-6 shadow">
                 <h3 className="text-lg font-bold text-green-600 mb-4">✏️ Tailored Resume</h3>
-                {tailoredResume ? (
+                {tailoredLoading ? (
+                  <div className="flex flex-col items-center justify-center h-48">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mb-3"></div>
+                    <p className="text-sm text-gray-600">Generating tailored resume...</p>
+                  </div>
+                ) : tailoredResume ? (
                   <div className="space-y-2">
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
                     <button onClick={() => downloadDocx(tailoredResume, "Tailored-Resume")} className="w-full btn-primary">â¬‡ï¸ Download</button>
@@ -598,6 +612,8 @@ export default function Assessment() {
     </div>
   )
 }
+
+
 
 
 

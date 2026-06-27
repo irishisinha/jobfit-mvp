@@ -5,6 +5,21 @@ import Groq from "groq-sdk"
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
+function cleanResume(text: string): string {
+  // Remove "KEYWORDS TO ADD:" section and everything before first real resume content
+  text = text.replace(/KEYWORDS\s+TO\s+ADD:.*?(?=\n[A-Z]|\n\n[A-Z])/is, "")
+  
+  // Remove instructions, examples, notes
+  text = text.replace(/Instructions:[\s\S]*?(?=\n[A-Z]|\nReturn|$)/i, "")
+  text = text.replace(/Example:[\s\S]*?(?=\n[A-Z]|\n\n|$)/i, "")
+  text = text.replace(/IMPORTANT:[\s\S]*?(?=\n[A-Z]|\n\n|$)/i, "")
+  
+  // Remove any leading/trailing metadata
+  text = text.replace(/^[\s\S]*?(?=\n?[A-Z][A-Z\s]+\n|^\S+)/m, "")
+  
+  return text.trim()
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,8 +33,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Step 1: Identify what keywords should be added
-    const identifyKeywordsPrompt = `You are analyzing a resume against a job description to identify optimization opportunities.
+    // Single call: identify and add keywords
+    const prompt = `You are optimizing a resume for a job application.
 
 RESUME:
 ${resume}
@@ -27,105 +42,52 @@ ${resume}
 JOB DESCRIPTION:
 ${jobDescription}
 
-Task: List 2-3 keywords/skills that:
-1. Are explicitly or implicitly mentioned in the resume
-2. Appear in the job description
-3. Are from the candidate's actual experience domains
-4. Would strengthen the application
+Task:
+1. Identify 2-3 keywords/phrases the candidate HAS EXPERIENCE WITH and that appear in the job description
+2. Add those keywords to the resume with [[[HIGHLIGHT_START]]]keyword[[[HIGHLIGHT_END]]]
+3. Keep ALL original formatting and line breaks
+4. Return ONLY the modified resume - no explanations
 
-Return ONLY a JSON array (no other text):
-{"keywords": ["keyword1", "keyword2", "keyword3"]}
+Return ONLY the complete modified resume text with highlights. Nothing else.`
 
-Be strict - ONLY include keywords the candidate already has experience with.`
-
-    const keywordsMsg = await groq.chat.completions.create({
-      messages: [{ role: "user", content: identifyKeywordsPrompt }],
-      model: "llama-3.1-8b-instant",
-      temperature: 0,
-      max_tokens: 300,
-    })
-
-    let keywordsToAdd: string[] = []
-    try {
-      const parsed = JSON.parse(keywordsMsg.choices[0]?.message?.content || "{}")
-      keywordsToAdd = parsed.keywords || []
-    } catch (e) {
-      console.error("Keyword parsing failed")
-    }
-
-    // Step 2: Add keywords to resume with highlighting - ONLY return the resume
-    const addKeywordsPrompt = `You are modifying a resume. ONLY return the complete modified resume text.
-
-ORIGINAL RESUME:
-${resume}
-
-KEYWORDS TO ADD: ${keywordsToAdd.join(", ")}
-
-Instructions:
-1. Take the resume above word-for-word
-2. Find 2-3 places where each keyword fits naturally
-3. Add ONLY the keyword(s) - mark additions with [[[HIGHLIGHT_START]]]keyword[[[HIGHLIGHT_END]]]
-4. Do NOT modify existing text
-5. Keep ALL original formatting, line breaks, spacing
-6. Return ONLY the complete modified resume
-
-Important: Do NOT include the job description, instructions, or any other text. ONLY the resume.
-
-Example:
-BEFORE: "Led marketplace growth"
-AFTER: "Led marketplace growth and [[[HIGHLIGHT_START]]]scaling[[[HIGHLIGHT_END]]]"
-
-Return the COMPLETE modified resume now:`
-
-    const tailorMsg = await groq.chat.completions.create({
-      messages: [{ role: "user", content: addKeywordsPrompt }],
+    const message = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
       model: "llama-3.1-8b-instant",
       temperature: 0,
       max_tokens: 3000,
     })
 
-    let tailoredResume = tailorMsg.choices[0]?.message?.content || ""
-    
-    // Clean any trailing instructions or extra content
-    tailoredResume = tailoredResume.trim()
-    // Remove common Groq artifacts
-    if (tailoredResume.includes("JOB DESCRIPTION")) {
-      tailoredResume = tailoredResume.split("JOB DESCRIPTION")[0].trim()
-    }
-    if (tailoredResume.toLowerCase().includes("instructions:") || tailoredResume.toLowerCase().includes("note:")) {
-      const lines = tailoredResume.split("\n")
-      const resumeLines = []
-      for (const line of lines) {
-        if (line.toLowerCase().includes("instructions:") || line.toLowerCase().includes("note:")) break
-        resumeLines.push(line)
-      }
-      tailoredResume = resumeLines.join("\n").trim()
-    }
+    let tailoredResume = message.choices[0]?.message?.content || resume
+    tailoredResume = cleanResume(tailoredResume)
 
-    // Step 3: Generate summary of changes
+    // Extract what was added for summary
+    const highlights = tailoredResume.match(/\[\[\[HIGHLIGHT_START\]\]\](.*?)\[\[\[HIGHLIGHT_END\]\]\]/g) || []
+    const keywordsToAdd = highlights.map(h => h.replace(/\[\[\[HIGHLIGHT_START\]\]\]|\[\[\[HIGHLIGHT_END\]\]\]/g, ""))
+
+    // Generate summary
     let changeSummary = ""
     if (keywordsToAdd.length > 0) {
-      const summaryPrompt = `Create a 2-3 bullet summary of keyword additions to a resume.
+      const summaryPrompt = `Create 2-3 bullet summary of these keyword additions to a resume.
 
 Keywords added: ${keywordsToAdd.join(", ")}
 Position: ${jobTitle} at ${company}
 
-Format ONLY as bullet points starting with "•":
-• Added "keyword" to emphasize relevant experience
-• Highlighted "skill" to match job requirements
+Format ONLY as bullets starting with "•":
+• Added "keyword" to emphasize experience
+• Highlighted "skill" to match requirements
 
-Be specific and concise.`
+Return ONLY the bullets, no other text.`
 
       const summaryMsg = await groq.chat.completions.create({
         messages: [{ role: "user", content: summaryPrompt }],
         model: "llama-3.1-8b-instant",
         temperature: 0,
-        max_tokens: 400,
+        max_tokens: 300,
       })
 
       changeSummary = summaryMsg.choices[0]?.message?.content || ""
     } else {
-      changeSummary = "• No additional keywords identified as relevant for this position\n• Your resume already emphasizes key strengths for this role"
+      changeSummary = "• Your resume already emphasizes key strengths for this role"
     }
 
     return NextResponse.json({
