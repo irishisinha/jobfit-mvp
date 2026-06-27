@@ -1,18 +1,27 @@
-"use client"
+﻿"use client"
 
-import * as mammoth from "mammoth"
-
-let pdfjsLib: any = null;
+let pdfjsLib: any = null
+let mammothLib: any = null
 
 // Dynamically import pdfjs only on client
 async function getPdfjsLib() {
-  if (pdfjsLib) return pdfjsLib;
+  if (pdfjsLib) return pdfjsLib
   
   if (typeof window !== "undefined") {
-    pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    pdfjsLib = await import("pdfjs-dist")
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
   }
-  return pdfjsLib;
+  return pdfjsLib
+}
+
+// Dynamically import mammoth only on client
+async function getMammothLib() {
+  if (mammothLib) return mammothLib
+  
+  if (typeof window !== "undefined") {
+    mammothLib = await import("mammoth")
+  }
+  return mammothLib
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
@@ -35,34 +44,34 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
 async function extractPdfText(file: File): Promise<string> {
   try {
-    const pdfjsLib = await getPdfjsLib();
-    if (!pdfjsLib) throw new Error("PDF.js not available");
-    
+    const pdfjsLib = await getPdfjsLib()
+    if (!pdfjsLib) throw new Error("PDF.js not available")
+
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
     let text = ""
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i)
-      const textContent = await page.getTextContent()
-      const pageText = textContent.items.map((item: any) => item.str).join(" ")
-      text += pageText + "\n"
+      const content = await page.getTextContent()
+      text += content.items.map((item: any) => item.str).join(" ") + "\n"
     }
 
-    return text.trim()
+    return text
   } catch (error) {
-    console.error("PDF extraction error:", error)
-    throw new Error("Failed to extract text from PDF")
+    throw new Error(`Failed to extract PDF text: ${error}`)
   }
 }
 
 async function extractDocxText(file: File): Promise<string> {
   try {
+    const mammoth = await getMammothLib()
+    if (!mammoth) throw new Error("Mammoth not available")
+
     const arrayBuffer = await file.arrayBuffer()
     const result = await mammoth.extractRawText({ arrayBuffer })
-    return result.value.trim()
+    return result.value
   } catch (error) {
-    console.error("DOCX extraction error:", error)
-    throw new Error("Failed to extract text from DOCX")
+    throw new Error(`Failed to extract DOCX text: ${error}`)
   }
 }
