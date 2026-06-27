@@ -1,26 +1,12 @@
-﻿"use client"
+"use client"
 
-let pdfjsLib: any = null
-let mammothLib: any = null
+// @ts-nocheck
+import * as pdfjsLib from "pdfjs-dist"
+import * as mammoth from "mammoth"
 
-async function getPdfjsLib() {
-  if (pdfjsLib) return pdfjsLib
-  
-  if (typeof window !== "undefined") {
-    pdfjsLib = await import("pdfjs-dist")
-    // Set worker from CDN
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-  }
-  return pdfjsLib
-}
-
-async function getMammothLib() {
-  if (mammothLib) return mammothLib
-  
-  if (typeof window !== "undefined") {
-    mammothLib = await import("mammoth")
-  }
-  return mammothLib
+// Set up PDF.js worker - use CDN version
+if (typeof window !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
@@ -43,7 +29,6 @@ export async function extractTextFromFile(file: File): Promise<string> {
 
 async function extractPdfText(file: File): Promise<string> {
   try {
-    const pdfjsLib = await getPdfjsLib()
     const arrayBuffer = await file.arrayBuffer()
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
     let text = ""
@@ -57,17 +42,18 @@ async function extractPdfText(file: File): Promise<string> {
 
     return text.trim()
   } catch (error) {
-    throw new Error(`Failed to extract PDF: ${error}`)
+    console.error("PDF extraction error:", error)
+    throw new Error("Failed to extract text from PDF")
   }
 }
 
 async function extractDocxText(file: File): Promise<string> {
   try {
-    const mammoth = await getMammothLib()
     const arrayBuffer = await file.arrayBuffer()
     const result = await mammoth.extractRawText({ arrayBuffer })
-    return result.value
+    return result.value.trim()
   } catch (error) {
-    throw new Error(`Failed to extract DOCX: ${error}`)
+    console.error("DOCX extraction error:", error)
+    throw new Error("Failed to extract text from DOCX")
   }
 }
