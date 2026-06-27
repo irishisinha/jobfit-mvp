@@ -47,7 +47,7 @@ Keep ALL formatting. Return ONLY resume text.`
     const keywords = highlights.map((h: string) => h.replace(/\[\[\[HIGHLIGHT_START\]\]\]|\[\[\[HIGHLIGHT_END\]\]\]/g, ""))
 
     const changeSummary = keywords.length > 0
-      ? keywords.map(k => `• Added "${k}" to emphasize relevant experience`).join("\n")
+      ? keywords.map((k: string) => `• Added "${k}" to emphasize relevant experience`).join("\n")
       : "• Resume already emphasizes key strengths"
 
     return NextResponse.json({
