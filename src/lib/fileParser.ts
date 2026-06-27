@@ -1,17 +1,6 @@
 ﻿"use client"
 
-let pdfjsLib: any = null
 let mammothLib: any = null
-
-async function getPdfjsLib() {
-  if (pdfjsLib) return pdfjsLib
-  if (typeof window === "undefined") return null
-  
-  pdfjsLib = await import("pdfjs-dist")
-  // Set worker AFTER import, only on client
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-  return pdfjsLib
-}
 
 async function getMammothLib() {
   if (mammothLib) return mammothLib
@@ -28,34 +17,34 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return await file.text()
   }
 
-  if (fileName.endsWith(".pdf")) {
-    return await extractPdfText(file)
-  }
-
   if (fileName.endsWith(".docx")) {
     return await extractDocxText(file)
   }
 
-  throw new Error(`Unsupported format: use TXT, PDF, or DOCX`)
+  if (fileName.endsWith(".pdf")) {
+    return await extractPdfText(file)
+  }
+
+  throw new Error("Supported formats: TXT, DOCX, PDF")
 }
 
 async function extractPdfText(file: File): Promise<string> {
   try {
-    const pdfjsLib = await getPdfjsLib()
-    if (!pdfjsLib) throw new Error("PDF.js not available")
-    
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-    let text = ""
+    const formData = new FormData()
+    formData.append("file", file)
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i)
-      const textContent = await page.getTextContent()
-      const pageText = textContent.items.map((item: any) => item.str).join(" ")
-      text += pageText + "\n"
+    const res = await fetch("/api/extract-pdf", {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const error = await res.json()
+      throw new Error(error.error || "PDF extraction failed")
     }
 
-    return text.trim()
+    const data = await res.json()
+    return data.text
   } catch (error) {
     throw new Error(`Failed to extract PDF: ${error}`)
   }
