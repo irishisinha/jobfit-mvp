@@ -89,10 +89,10 @@ export default function ConsistencyCheckerPage() {
                 You have multiple resumes for different roles (Senior PM, Product Manager, Consultant, etc.). Great,” but if they contradict each other, LinkedIn and hiring managers will notice.
               </p>
               <ul className="space-y-2 text-gray-700">
-                <li>• Resume A says you managed $10M P&L, Resume B says $1M '” which is true?</li>
-                <li>• Resume A lists 5 years at Company X, Resume B lists 7 years '” which is real?</li>
+                <li>• Resume A says you managed $10M P&L, Resume B says $1M — which is true?</li>
+                <li>• Resume A lists 5 years at Company X, Resume B lists 7 years — which is real?</li>
                 <li>• Resume A claims "Head of Product" title, Resume B says "Senior PM" at same company same time</li>
-                <li>• Dates overlap or don't add up '” recruiter spots the lie immediately</li>
+                <li>• Dates overlap or don't add up — recruiter spots the lie immediately</li>
               </ul>
               <p className="text-gray-700 mt-4 font-semibold">
                 This tool finds those contradictions BEFORE you paste into LinkedIn.
@@ -135,7 +135,7 @@ export default function ConsistencyCheckerPage() {
           <div className="max-w-3xl mx-auto space-y-6">
             <div className={`rounded-lg p-8 shadow ${result.hasIssues ? "bg-red-50 border-2 border-red-300" : "bg-green-50 border-2 border-green-300"}`}>
               <h2 className={`text-2xl font-bold mb-2 ${result.hasIssues ? "text-red-700" : "text-green-700"}`}>
-                {result.hasIssues ? "âš ï¸ Issues Found" : "âœ“ All Clear"}
+                {result.hasIssues ? "⚠️ Issues Found" : "✓ All Clear"}
               </h2>
               <p className={`text-lg ${result.hasIssues ? "text-red-800" : "text-green-800"}`}>
                 {result.summary}

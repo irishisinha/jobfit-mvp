@@ -190,7 +190,7 @@ export default function LinkedInOptimizerPage() {
                 <h3 className="text-lg font-bold mb-3">Pinned Skills to Prioritize</h3>
                 <ul className="space-y-1">
                   {(result.skillsSectionRecommendations || []).map((s: any, i: number) => (
-                    <li key={i} className="text-sm">âœ“ {s.skill} '” {s.action}</li>
+                    <li key={i} className="text-sm">✓ {s.skill} — {s.action}</li>
                   ))}
                 </ul>
               </div>
@@ -215,7 +215,7 @@ export default function LinkedInOptimizerPage() {
                 <h3 className="text-lg font-bold mb-3 text-red-700">Consistency Issues Across Your Resumes</h3>
                 <ul className="space-y-2">
                   {result.consistencyCheck.map((c: string, i: number) => (
-                    <li key={i} className="text-sm text-red-800">âš  {c}</li>
+                    <li key={i} className="text-sm text-red-800">⚠ {c}</li>
                   ))}
                 </ul>
               </div>

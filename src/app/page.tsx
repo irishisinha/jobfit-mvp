@@ -33,17 +33,17 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-white rounded-lg p-6 shadow-lg">
-            <div className="text-4xl mb-4">ðŸ”</div>
+            <div className="text-4xl mb-4">🔍</div>
             <h3 className="text-xl font-bold mb-2">Check Your Resumes</h3>
             <p className="text-gray-600 text-sm">Before LinkedIn or recruiters see them, check for contradictions that could sink your application.</p>
           </div>
           <div className="bg-white rounded-lg p-6 shadow-lg">
-            <div className="text-4xl mb-4">ðŸ“Š</div>
+            <div className="text-4xl mb-4">📊</div>
             <h3 className="text-xl font-bold mb-2">Get Job Insights</h3>
             <p className="text-gray-600 text-sm">Market data, salary ranges, interview prep, and what competitors have that you don't.</p>
           </div>
           <div className="bg-white rounded-lg p-6 shadow-lg">
-            <div className="text-4xl mb-4">ðŸ’¼</div>
+            <div className="text-4xl mb-4">💼</div>
             <h3 className="text-xl font-bold mb-2">Optimize LinkedIn</h3>
             <p className="text-gray-600 text-sm">AI-recommended headline, about section, and skills tailored to your target roles.</p>
           </div>
@@ -58,10 +58,10 @@ export default function Home() {
             <strong>JobFit only uses skills and achievements explicitly in your resume.</strong> No BS. That means:
           </p>
           <ul className="space-y-2 text-gray-700 mb-6">
-            <li>âœ“ Cover letters that highlight real strengths, address real gaps honestly</li>
-            <li>âœ“ Resumes tailored by reordering (not lying), grounded in facts</li>
-            <li>âœ“ LinkedIn profile that matches your actual experience</li>
-            <li>âœ“ Interview prep that doesn't set you up to fail</li>
+            <li>✓ Cover letters that highlight real strengths, address real gaps honestly</li>
+            <li>✓ Resumes tailored by reordering (not lying), grounded in facts</li>
+            <li>✓ LinkedIn profile that matches your actual experience</li>
+            <li>✓ Interview prep that doesn't set you up to fail</li>
           </ul>
           <p className="text-sm text-gray-600 text-center">
             Better callbacks from jobs you can actually do. Fewer rejections from lies discovered in background checks.
