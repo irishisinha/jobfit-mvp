@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "../../../lib/auth"
+import { authOptions } from "@/lib/auth"
 import Groq from "groq-sdk"
 
 export const maxDuration = 60
@@ -20,28 +20,28 @@ export async function POST(req: NextRequest) {
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-    const prompt = `Write a SHORT, personalized LinkedIn connection message (120-160 words max).
+    const prompt = `Write a SHORT, authentic LinkedIn message (120-160 words).
 
-COMPLETE RESUME:
+RESUME:
 ${resume}
 
 TARGET JOB: ${jobTitle} at ${company}
 
-JOB DESCRIPTION:
-${jobDescription}
+CRITICAL: Only reference achievements and experience actually in the resume.
+- Pick ONE genuine achievement from resume
+- Do NOT claim skills/experience candidate doesn't have
+- Be authentic, not keyword-stuffed
+- Reference real, relevant accomplishment only
 
-KEY STRENGTHS: ${strengths.slice(0, 3).join(", ")}
-
-Write a message that:
-1. Opens with specific reason for connecting (reference company mission or role)
-2. Mention ONE relevant achievement from the resume
+Write message that:
+1. Opens with specific reason for connecting (reference real achievement or company)
+2. Mention ONE real achievement from resume
 3. Show genuine interest in THIS opportunity
-4. Soft call-to-action ("I'd love to learn more..." or "Would appreciate your insights...")
-5. Keep it SHORT, conversational, authentic
-6. NO corporate jargon or buzzwords
-7. NO false claims - only mention REAL skills/experience
+4. Soft call-to-action
+5. Keep it SHORT and conversational
+6. NO false claims
 
-Return ONLY the message text, ready to paste into LinkedIn. No formatting or headers.`
+Return ONLY the message text, ready to paste into LinkedIn.`
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
@@ -58,9 +58,6 @@ Return ONLY the message text, ready to paste into LinkedIn. No formatting or hea
     return NextResponse.json({ linkedInMessage: content })
   } catch (error: any) {
     console.error("LinkedIn error:", error)
-    return NextResponse.json({
-      error: "Failed to generate LinkedIn message",
-      details: error.message,
-    }, { status: 500 })
+    return NextResponse.json({ error: "Failed to generate LinkedIn message", details: error.message }, { status: 500 })
   }
 }

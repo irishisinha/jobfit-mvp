@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
+﻿import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import Groq from "groq-sdk"
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-})
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,78 +18,58 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const keywords = missingKeywords.slice(0, 5)
-    
-    // Use FULL resume - no truncation
-    const prompt = `TASK: Add job keywords to complete resume and mark additions.
+    const prompt = `CRITICAL: Only add keywords that match the candidate's actual experience domains.
 
-COMPLETE RESUME TO MODIFY:
+RESUME:
 ${resume}
 
-KEYWORDS TO ADD (pick 2-3 most relevant): ${keywords.join(", ")}
+JOB DESCRIPTION:
+${jobDescription}
 
-INSTRUCTIONS:
-1. Keep resume format EXACTLY the same
-2. Process the ENTIRE resume, not just parts
-3. Find relevant places to naturally add keywords from the list
-4. Wrap ONLY the added/modified text in markers: [[[HIGHLIGHT_START]]]text[[[HIGHLIGHT_END]]]
-5. Add 2-3 keyword additions maximum
-6. Return the FULL modified resume with markers
+RULES:
+1. Identify candidate's actual experience domains (e.g., e-commerce, FMCG, marketplaces, SaaS, finance)
+2. Identify job's required keywords
+3. Only add keywords if they match candidate's domains
+4. If keyword is from unrelated industry/domain, SKIP IT - do not add
+5. Keep ALL original format, spacing, line breaks
+6. Make MINIMAL changes - only 2-3 keyword additions max
+7. Return EXACT original resume structure
 
-Example: If adding "leadership", you might change "managed team" to "managed team with [[[HIGHLIGHT_START]]]leadership[[[HIGHLIGHT_END]]]"
+Examples:
+- Candidate has e-commerce experience + job needs "marketplace scaling" = ADD (same domain)
+- Candidate has FMCG background + job needs "retail strategy" = ADD (related domain)
+- Candidate has marketplace experience + job needs "short-term rental platforms" = SKIP (unrelated domain)
 
-NOW modify the entire resume and return it with markers.`
+Return the resume with ONLY domain-relevant keywords added. No forced fits.`
 
-    console.log("Calling Groq for tailored resume...")
-    console.log("Resume length:", resume.length)
-    console.log("Keywords to add:", keywords.join(", "))
-    
     const message = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 4000,
+      max_tokens: 2000,
     })
 
     const tailoredResume = message.choices[0]?.message?.content || ""
-    console.log("Response length:", tailoredResume.length)
-    console.log("Has highlights:", tailoredResume.includes("[[[HIGHLIGHT_START]]]"))
-    console.log("First 500 chars:", tailoredResume.substring(0, 500))
 
-    // Generate summary
+    // Generate truthful summary
     let changeSummary = ""
     try {
-      const summaryPrompt = `Compare original and modified resume. List the 2-3 keyword additions made:
+      const summaryPrompt = `Based on the keyword additions made, provide a 2-3 bullet summary of ONLY the domain-relevant optimizations. No forced keywords.
 
-ORIGINAL (first 2000 chars):
-${resume.substring(0, 2000)}
-
-MODIFIED (first 2000 chars):
-${tailoredResume.substring(0, 2000)}
-
-Format: "• Added '[keyword]' to highlight [section]" 
-Only list actual changes visible in both versions.`
+Format as bullet points starting with "•".
+Example: "• Added 'marketplace scaling' to highlight relevant experience"
+NOT: "• Added unrelated keywords to game the ATS"`
 
       const summaryMessage = await groq.chat.completions.create({
-        messages: [
-          {
-            role: "user",
-            content: summaryPrompt,
-          },
-        ],
+        messages: [{ role: "user", content: summaryPrompt }],
         model: "llama-3.1-8b-instant",
         temperature: 0,
         max_tokens: 300,
       })
 
       changeSummary = summaryMessage.choices[0]?.message?.content || ""
-    } catch (summaryErr) {
-      console.error("Summary generation failed:", summaryErr)
+    } catch (err) {
+      console.error("Summary generation failed")
     }
 
     return NextResponse.json({
@@ -100,9 +78,7 @@ Only list actual changes visible in both versions.`
       changeSummary,
     })
   } catch (error: any) {
-    console.error("Tailor resume error:", error.message || error)
-    return NextResponse.json({ 
-      error: `Failed to tailor resume: ${error.message || "Unknown error"}` 
-    }, { status: 500 })
+    console.error("Tailor resume error:", error.message)
+    return NextResponse.json({ error: `Failed to tailor resume: ${error.message}` }, { status: 500 })
   }
 }
