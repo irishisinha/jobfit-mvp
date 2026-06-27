@@ -44,7 +44,7 @@ Keep ALL formatting. Return ONLY resume text.`
 
     // Extract keywords
     const highlights = tailoredResume.match(/\[\[\[HIGHLIGHT_START\]\]\](.*?)\[\[\[HIGHLIGHT_END\]\]\]/g) || []
-    const keywords = highlights.map(h => h.replace(/\[\[\[HIGHLIGHT_START\]\]\]|\[\[\[HIGHLIGHT_END\]\]\]/g, ""))
+    const keywords = highlights.map((h: string) => h.replace(/\[\[\[HIGHLIGHT_START\]\]\]|\[\[\[HIGHLIGHT_END\]\]\]/g, ""))
 
     const changeSummary = keywords.length > 0
       ? keywords.map(k => `• Added "${k}" to emphasize relevant experience`).join("\n")
