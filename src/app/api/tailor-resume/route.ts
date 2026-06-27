@@ -12,13 +12,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { resume, jobDescription, jobTitle, company, gaps, missingKeywords } = await req.json()
+    const { resume, jobDescription, jobTitle, company } = await req.json()
 
     if (!resume?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `CRITICAL: Only add keywords that match the candidate's actual experience domains.
+    // Step 1: Identify what keywords should be added
+    const identifyKeywordsPrompt = `Analyze resume and job description to identify which keywords/skills from the job description the candidate actually has but hasn't emphasized.
 
 RESUME:
 ${resume}
@@ -26,56 +27,95 @@ ${resume}
 JOB DESCRIPTION:
 ${jobDescription}
 
-RULES:
-1. Identify candidate's actual experience domains (e.g., e-commerce, FMCG, marketplaces, SaaS, finance)
-2. Identify job's required keywords
-3. Only add keywords if they match candidate's domains
-4. If keyword is from unrelated industry/domain, SKIP IT - do not add
-5. Keep ALL original format, spacing, line breaks
-6. Make MINIMAL changes - only 2-3 keyword additions max
-7. Return EXACT original resume structure
+Task: List 2-3 keywords/skills that:
+1. Appear explicitly or implicitly in the resume
+2. Appear in the job description
+3. Are from candidate's actual experience domains
+4. Would help with job fit
 
-Examples:
-- Candidate has e-commerce experience + job needs "marketplace scaling" = ADD (same domain)
-- Candidate has FMCG background + job needs "retail strategy" = ADD (related domain)
-- Candidate has marketplace experience + job needs "short-term rental platforms" = SKIP (unrelated domain)
+Return ONLY a JSON array of keywords to add:
+{"keywords": ["keyword1", "keyword2", "keyword3"]}
 
-Return the resume with ONLY domain-relevant keywords added. No forced fits.`
+CRITICAL: Only include keywords the candidate ACTUALLY has.`
 
-    const message = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+    const keywordsMsg = await groq.chat.completions.create({
+      messages: [{ role: "user", content: identifyKeywordsPrompt }],
       model: "llama-3.1-8b-instant",
       temperature: 0,
-      max_tokens: 2000,
+      max_tokens: 300,
     })
 
-    const tailoredResume = message.choices[0]?.message?.content || ""
-
-    // Generate truthful summary
-    let changeSummary = ""
+    let keywordsToAdd: string[] = []
     try {
-      const summaryPrompt = `Based on the keyword additions made, provide a 2-3 bullet summary of ONLY the domain-relevant optimizations. No forced keywords.
+      const parsed = JSON.parse(keywordsMsg.choices[0]?.message?.content || "{}")
+      keywordsToAdd = parsed.keywords || []
+    } catch (e) {
+      console.error("Keyword parsing failed")
+    }
+
+    // Step 2: Add keywords to resume with highlighting
+    const addKeywordsPrompt = `You will add domain-relevant keywords to a resume and mark them for highlighting.
+
+RESUME:
+${resume}
+
+KEYWORDS TO ADD: ${keywordsToAdd.join(", ")}
+
+Rules:
+1. Find relevant sections in resume where each keyword fits naturally
+2. Add the keyword if it emphasizes something the candidate actually did
+3. Wrap ADDED content ONLY (not existing text) with [[[HIGHLIGHT_START]]]...[[[HIGHLIGHT_END]]]
+4. Keep all original format, line breaks, structure
+5. Return EXACTLY the resume with marked additions
+6. Do NOT modify existing text - only ADD new content marked with highlights
+
+Example:
+Original: "Led marketplace growth initiatives"
+Updated: "Led marketplace growth initiatives and [[[HIGHLIGHT_START]]]scaling[[[HIGHLIGHT_END]]] across platforms"
+
+Return the COMPLETE resume with minimal (2-3) keyword additions marked.`
+
+    const tailorMsg = await groq.chat.completions.create({
+      messages: [{ role: "user", content: addKeywordsPrompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 2500,
+    })
+
+    const tailoredResume = tailorMsg.choices[0]?.message?.content || ""
+
+    // Step 3: Generate summary of changes
+    let changeSummary = ""
+    if (keywordsToAdd.length > 0) {
+      const summaryPrompt = `Summarize these keyword additions to a resume in 2-3 bullets.
+
+Keywords added: ${keywordsToAdd.join(", ")}
+Job: ${jobTitle} at ${company}
 
 Format as bullet points starting with "•".
-Example: "• Added 'marketplace scaling' to highlight relevant experience"
-NOT: "• Added unrelated keywords to game the ATS"`
+Example output:
+• Added "marketplace scaling" to emphasize relevant e-commerce experience
+• Highlighted "P&L ownership" to match job requirements
 
-      const summaryMessage = await groq.chat.completions.create({
+Be specific and concise.`
+
+      const summaryMsg = await groq.chat.completions.create({
         messages: [{ role: "user", content: summaryPrompt }],
         model: "llama-3.1-8b-instant",
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 400,
       })
 
-      changeSummary = summaryMessage.choices[0]?.message?.content || ""
-    } catch (err) {
-      console.error("Summary generation failed")
+      changeSummary = summaryMsg.choices[0]?.message?.content || ""
+    } else {
+      changeSummary = "• No additional keywords identified as relevant for this position\n• Your resume already emphasizes key strengths for this role"
     }
 
     return NextResponse.json({
       tailoredResume,
       originalResume: resume,
       changeSummary,
+      addedKeywords: keywordsToAdd,
     })
   } catch (error: any) {
     console.error("Tailor resume error:", error.message)

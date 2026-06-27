@@ -68,7 +68,7 @@ export default function Assessment() {
     if (coverLetter && selectedResume && jobDescription && result) {
       handleGenerateCoverLetter()
     }
-  }, [coverLetterTone])
+  }, [coverLetterTone, selectedResume, jobDescription, result, coverLetter])
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
