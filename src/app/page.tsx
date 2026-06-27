@@ -31,17 +31,17 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-white rounded-lg p-6 shadow-lg">
-            <div className="text-4xl mb-4">ðŸ”</div>
+            <div className="text-4xl mb-4">📋”</div>
             <h3 className="text-xl font-bold mb-2">Check Your Resumes</h3>
             <p className="text-gray-600 text-sm">Before LinkedIn or recruiters see them, check for contradictions that could sink your application.</p>
           </div>
           <div className="bg-white rounded-lg p-6 shadow-lg">
-            <div className="text-4xl mb-4">ðŸ“Š</div>
+            <div className="text-4xl mb-4">📋“Š</div>
             <h3 className="text-xl font-bold mb-2">Get Job Insights</h3>
             <p className="text-gray-600 text-sm">Market data, salary ranges, interview prep, and what competitors have that you don't.</p>
           </div>
           <div className="bg-white rounded-lg p-6 shadow-lg">
-            <div className="text-4xl mb-4">ðŸ’¼</div>
+            <div className="text-4xl mb-4">📋’¼</div>
             <h3 className="text-xl font-bold mb-2">Optimize LinkedIn</h3>
             <p className="text-gray-600 text-sm">AI-recommended headline, about section, and skills tailored to your target roles.</p>
           </div>
