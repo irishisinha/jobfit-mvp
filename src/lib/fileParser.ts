@@ -1,8 +1,19 @@
 ﻿"use client"
 
+let pdfjsLib: any = null
 let mammothLib: any = null
 
-// Dynamically import mammoth only on client
+async function getPdfjsLib() {
+  if (pdfjsLib) return pdfjsLib
+  
+  if (typeof window !== "undefined") {
+    pdfjsLib = await import("pdfjs-dist")
+    // Set worker from CDN
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  }
+  return pdfjsLib
+}
+
 async function getMammothLib() {
   if (mammothLib) return mammothLib
   
@@ -19,22 +30,40 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return await file.text()
   }
 
+  if (fileName.endsWith(".pdf")) {
+    return await extractPdfText(file)
+  }
+
   if (fileName.endsWith(".docx")) {
     return await extractDocxText(file)
   }
 
-  if (fileName.endsWith(".pdf")) {
-    throw new Error("PDF support coming soon. Please convert to DOCX or paste as TXT.")
-  }
+  throw new Error(`Unsupported file format: ${file.type}`)
+}
 
-  throw new Error(`Unsupported format. Use TXT or DOCX.`)
+async function extractPdfText(file: File): Promise<string> {
+  try {
+    const pdfjsLib = await getPdfjsLib()
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    let text = ""
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const textContent = await page.getTextContent()
+      const pageText = textContent.items.map((item: any) => item.str).join(" ")
+      text += pageText + "\n"
+    }
+
+    return text.trim()
+  } catch (error) {
+    throw new Error(`Failed to extract PDF: ${error}`)
+  }
 }
 
 async function extractDocxText(file: File): Promise<string> {
   try {
     const mammoth = await getMammothLib()
-    if (!mammoth) throw new Error("DOCX parser not available")
-
     const arrayBuffer = await file.arrayBuffer()
     const result = await mammoth.extractRawText({ arrayBuffer })
     return result.value
