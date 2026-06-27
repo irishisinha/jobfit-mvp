@@ -18,77 +18,132 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Single call: identify domain-relevant keywords and add them
-    const prompt = `CRITICAL: Only add keywords the candidate ACTUALLY has experience with.
+    // Step 1: Extract candidate's explicit skills and domains from resume
+    const extractionPrompt = `Extract candidate's EXPLICIT skills and domains from this resume.
 
 RESUME:
 ${resume}
 
+Return ONLY JSON:
+{
+  "domains": ["domain1", "domain2"],
+  "skills": [{"skill": "name", "evidence": "exact quote from resume"}],
+  "achievements": [{"achievement": "name", "evidence": "exact quote"}]
+}
+
+Be strict - ONLY extract skills explicitly mentioned or clearly implied by evidence.`
+
+    const extractMsg = await groq.chat.completions.create({
+      messages: [{ role: "user", content: extractionPrompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 1000,
+    })
+
+    let candidateProfile: any = { domains: [], skills: [], achievements: [] }
+    try {
+      candidateProfile = JSON.parse(extractMsg.choices[0]?.message?.content || "{}")
+    } catch (e) {
+      console.warn("Failed to parse candidate profile")
+    }
+
+    // Step 2: Identify job requirements
+    const jobReqPrompt = `Extract required keywords/skills from this job description.
+
 JOB DESCRIPTION:
 ${jobDescription}
 
+Return ONLY JSON array of top 5-7 keywords:
+["keyword1", "keyword2"]
+
+Focus on actionable skills, not generic terms.`
+
+    const jobMsg = await groq.chat.completions.create({
+      messages: [{ role: "user", content: jobReqPrompt }],
+      model: "llama-3.1-8b-instant",
+      temperature: 0,
+      max_tokens: 300,
+    })
+
+    let jobKeywords: string[] = []
+    try {
+      jobKeywords = JSON.parse(jobMsg.choices[0]?.message?.content || "[]")
+    } catch (e) {
+      console.warn("Failed to parse job keywords")
+    }
+
+    // Step 3: Match and add only HIGH-confidence keywords
+    const tailorPrompt = `Match job keywords against candidate's skills. ONLY add HIGH-CONFIDENCE matches.
+
+CANDIDATE DOMAINS: ${JSON.stringify(candidateProfile.domains)}
+CANDIDATE SKILLS: ${JSON.stringify(candidateProfile.skills)}
+JOB KEYWORDS: ${JSON.stringify(jobKeywords)}
+
 RULES:
-1. Identify candidate's actual experience domains (industries, skills, roles)
-2. Identify job's required keywords
-3. ONLY add keywords if candidate's resume explicitly mentions related experience
-4. Skip keywords from unrelated domains
-5. Keep ALL original format and line breaks
-6. Mark additions with [[[HIGHLIGHT_START]]]keyword[[[HIGHLIGHT_END]]]
+1. Only add keyword if candidate's skill is in SAME domain
+2. Only if match is EXPLICIT or CLEARLY IMPLIED
+3. Skip if unsure - better to miss than claim false expertise
+4. Mark additions: [[[HIGHLIGHT_START]]]keyword[[[HIGHLIGHT_END]]]
+5. Return ONLY modified resume (keep all formatting)
 
-Return ONLY the complete modified resume. No explanations.`
+For each addition, be ready to cite evidence.`
 
-    const message = await groq.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
+    const tailorMsg = await groq.chat.completions.create({
+      messages: [
+        { role: "user", content: tailorPrompt },
+        { role: "user", content: `Now optimize this resume:\n\n${resume}` }
+      ],
       model: "llama-3.1-8b-instant",
       temperature: 0,
       max_tokens: 2500,
     })
 
-    let tailoredResume = message.choices[0]?.message?.content || resume
+    let tailoredResume = tailorMsg.choices[0]?.message?.content || resume
     
     // Clean artifacts
-    tailoredResume = tailoredResume.replace(/KEYWORDS\s+TO\s+ADD:[\s\S]*?(?=\n[A-Z])/i, "")
-    tailoredResume = tailoredResume.replace(/Instructions:[\s\S]*?(?=\n[A-Z])/i, "")
-    tailoredResume = tailoredResume.trim()
+    tailoredResume = tailoredResume.replace(/KEYWORDS[\s\S]*?(?=\n[A-Z]|\n$)/i, "").trim()
+    tailoredResume = tailoredResume.replace(/Instructions[\s\S]*?(?=\n[A-Z]|\n$)/i, "").trim()
 
-    // Extract keywords for summary
+    // Step 4: Extract additions and generate transparent summary
     const highlights = tailoredResume.match(/\[\[\[HIGHLIGHT_START\]\]\](.*?)\[\[\[HIGHLIGHT_END\]\]\]/g) || []
-    const keywords = highlights.map((h: string) => h.replace(/\[\[\[HIGHLIGHT_START\]\]\]|\[\[\[HIGHLIGHT_END\]\]\]/g, ""))
+    const addedKeywords = highlights.map((h: string) => h.replace(/\[\[\[HIGHLIGHT_START\]\]\]|\[\[\[HIGHLIGHT_END\]\]\]/g, ""))
 
-    // Generate summary
+    // Generate summary with evidence
     let changeSummary = ""
-    if (keywords.length > 0) {
-      const summaryPrompt = `Summarize these keyword additions (2-3 bullets). ONLY mention actual skills from resume.
+    if (addedKeywords.length > 0) {
+      const summaryPrompt = `Create a transparent summary of keywords added to resume.
 
-Keywords added: ${keywords.join(", ")}
-Position: ${jobTitle} at ${company}
+ADDED KEYWORDS: ${JSON.stringify(addedKeywords)}
+CANDIDATE EVIDENCE: ${JSON.stringify(candidateProfile.skills)}
 
-Format as bullets. Example:
-• Added "marketplace scaling" to emphasize relevant e-commerce experience
-• Highlighted "P&L ownership" to match job requirements
+For EACH keyword added, explain:
+• Keyword: X
+• Evidence: [exact quote from resume]
+• Why: [why it's relevant to job]
 
-NEVER mention skills candidate doesn't have.`
+Format as bullets. Be specific - user must be able to verify truthfulness.`
 
       const summaryMsg = await groq.chat.completions.create({
         messages: [{ role: "user", content: summaryPrompt }],
         model: "llama-3.1-8b-instant",
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 400,
       })
 
       changeSummary = summaryMsg.choices[0]?.message?.content || ""
     } else {
-      changeSummary = "• Your resume already emphasizes key strengths\n• No additional keywords identified as relevant"
+      changeSummary = "• No keywords added - your resume already emphasizes relevant strengths for this role"
     }
 
     return NextResponse.json({
       tailoredResume,
       originalResume: resume,
       changeSummary,
-      addedKeywords: keywords,
+      addedKeywords,
+      candidateProfile,
     })
   } catch (error: any) {
     console.error("Tailor resume error:", error.message)
-    return NextResponse.json({ error: `Failed to tailor resume: ${error.message}` }, { status: 500 })
+    return NextResponse.json({ error: `Failed to tailor: ${error.message}` }, { status: 500 })
   }
 }
