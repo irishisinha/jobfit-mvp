@@ -305,7 +305,7 @@ export default function Assessment() {
       const res = await fetch("/api/cover-letters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords , tone: coverLetterTone,
+        body: JSON.stringify({ resume: selectedResume.content, jobDescription, jobTitle, company: extractedCompany, strengths: result.strengths, gaps: result.gaps, missingKeywords: result.missingKeywords , tone: coverLetterTone,
         }),
       })
       const data = await res.json()
@@ -612,6 +612,7 @@ export default function Assessment() {
     </div>
   )
 }
+
 
 
 
