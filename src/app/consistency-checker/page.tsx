@@ -135,7 +135,7 @@ export default function ConsistencyCheckerPage() {
           <div className="max-w-3xl mx-auto space-y-6">
             <div className={`rounded-lg p-8 shadow ${result.hasIssues ? "bg-red-50 border-2 border-red-300" : "bg-green-50 border-2 border-green-300"}`}>
               <h2 className={`text-2xl font-bold mb-2 ${result.hasIssues ? "text-red-700" : "text-green-700"}`}>
-                {result.hasIssues ? "âš ï¸ Issues Found" : "âœ“ All Clear"}
+                {result.hasIssues ? "⚠ ï¸ Issues Found" : "✓“ All Clear"}
               </h2>
               <p className={`text-lg ${result.hasIssues ? "text-red-800" : "text-green-800"}`}>
                 {result.summary}
@@ -181,7 +181,7 @@ export default function ConsistencyCheckerPage() {
             <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
               <p className="text-sm text-blue-900">
                 <strong>Next Step:</strong> Fix the issues above, then update your LinkedIn profile using our LinkedIn Optimizer.
-                <Link href="/linkedin-optimizer" className="underline ml-2">Go to LinkedIn Optimizer â†’</Link>
+                <Link href="/linkedin-optimizer" className="underline ml-2">Go to LinkedIn Optimizer →’</Link>
               </p>
             </div>
 
