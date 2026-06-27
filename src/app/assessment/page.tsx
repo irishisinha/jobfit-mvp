@@ -72,7 +72,7 @@ export default function Assessment() {
     if (coverLetter && selectedResume && jobDescription && result) {
       handleGenerateCoverLetter()
     }
-  }, [coverLetterTone, selectedResume, jobDescription, result, coverLetter])
+  }, [coverLetterTone, selectedResume, jobDescription, result])
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -471,15 +471,15 @@ export default function Assessment() {
               <div className="pt-3 border-t-2 border-green-300">
                 {result.fitScore >= 75 ? (
                   <div className="bg-green-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-green-800">âœ“ APPLY: Strong match with your qualifications</p>
+                    <p className="text-sm font-bold text-green-800">✓ APPLY: Strong match with your qualifications</p>
                   </div>
                 ) : result.fitScore >= 50 ? (
                   <div className="bg-yellow-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-yellow-800">âš¡ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
+                    <p className="text-sm font-bold text-yellow-800">⚡ APPLY WITH TAILORING: Moderate match - optimize your materials</p>
                   </div>
                 ) : (
                   <div className="bg-red-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm font-bold text-red-800">âŒ RISKY: Weak match - significant skill gaps</p>
+                    <p className="text-sm font-bold text-red-800">❌ RISKY: Weak match - significant skill gaps</p>
                   </div>
                 )}
               </div>
@@ -494,7 +494,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.strengths || []).map((s, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-green-600 mr-2">âœ“</span>
+                        <span className="text-green-600 mr-2">✓</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -505,7 +505,7 @@ export default function Assessment() {
                   <ul className="space-y-2">
                     {(result.gaps || []).map((g, i) => (
                       <li key={i} className="flex items-start">
-                        <span className="text-red-600 mr-2">â€”Â '</span>
+                        <span className="text-red-600 mr-2">–</span>
                         <span>{g}</span>
                       </li>
                     ))}
@@ -552,7 +552,7 @@ export default function Assessment() {
                 ) : coverLetter ? (
                   <div className="space-y-2">
                     <textarea value={coverLetter} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">â¬‡ï¸ Download</button>
+                    <button onClick={() => downloadDocx(coverLetter, "Cover-Letter")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateCoverLetter} className="w-full btn-primary">Generate</button>
@@ -569,7 +569,7 @@ export default function Assessment() {
                 ) : tailoredResume ? (
                   <div className="space-y-2">
                     <textarea value={tailoredResume} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(tailoredResume, "Tailored-Resume")} className="w-full btn-primary">â¬‡ï¸ Download</button>
+                    <button onClick={() => downloadDocx(tailoredResume, "Tailored-Resume")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateTailoredResume} disabled={result.tailorWorth < 5} className={`w-full ${result.tailorWorth < 5 ? "opacity-50 cursor-not-allowed btn-secondary" : "btn-primary"}`}>
@@ -583,7 +583,7 @@ export default function Assessment() {
                 {linkedInMessage ? (
                   <div className="space-y-2">
                     <textarea value={linkedInMessage} readOnly className="w-full h-48 px-4 py-3 border-2 border-gray-300 rounded-lg text-xs font-mono" />
-                    <button onClick={() => downloadDocx(linkedInMessage, "LinkedIn-Outreach")} className="w-full btn-primary">â¬‡ï¸ Download</button>
+                    <button onClick={() => downloadDocx(linkedInMessage, "LinkedIn-Outreach")} className="w-full btn-primary">⬇️ Download</button>
                   </div>
                 ) : (
                   <button onClick={handleGenerateLinkedIn} className="w-full btn-primary">Generate</button>
