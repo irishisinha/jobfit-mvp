@@ -1,9 +1,11 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import * as mammoth from 'mammoth'
 
-// Set up PDF.js worker
+// Set up PDF.js worker. Served from /public (copied from node_modules via the
+// "postinstall:worker" script) since modern pdfjs-dist versions ship a .mjs
+// worker that the cdnjs mirror doesn't reliably have for every release.
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
