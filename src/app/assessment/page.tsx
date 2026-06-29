@@ -113,12 +113,21 @@ export default function Assessment() {
     }
   }
   const handleAnalyzeJob = async () => {
+    // Validate job description
     if (!jobDescription.trim()) {
       setError("Please enter a job description")
       return
     }
-    if (savedResumes.length === 0) {
-      setError("Please save at least one resume first")
+
+    // Validate user authentication
+    if (!session?.user?.email) {
+      setError("You must be logged in to analyze jobs")
+      return
+    }
+
+    // Validate resumes exist for this user
+    if (!savedResumes || savedResumes.length === 0) {
+      setError("No resumes found for your account. Please upload at least one resume first. Resumes are private to your account only.")
       return
     }
 
@@ -397,10 +406,28 @@ export default function Assessment() {
                 </div>
               )}
             </div>
+
+            {savedResumes.length === 0 && (
+              <div className="bg-orange-50 border-2 border-orange-400 text-orange-800 p-4 rounded-lg mb-4">
+                <p className="font-bold mb-2">⚠️ No Resumes Found</p>
+                <p className="text-sm">You need to upload at least one resume before analyzing jobs. Your resumes are private to your account.</p>
+                <Link href="/resumes" className="inline-block mt-3 px-4 py-2 bg-orange-500 text-white rounded font-bold hover:bg-orange-600">
+                  Upload Resume →
+                </Link>
+              </div>
+            )}
+
             {error && <div className="bg-red-100 border-2 border-red-500 text-red-800 p-4 rounded-lg mb-4">{error}</div>}
-            <button onClick={handleAnalyzeJob} disabled={loading || !jobDescription.trim() || savedResumes.length === 0} className={`w-full px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}>
-              {loading ? "Analyzing..." : "Analyze & Get Recommendation"}
+
+            <button onClick={handleAnalyzeJob} disabled={loading || !jobDescription.trim() || savedResumes.length === 0} className={`w-full px-6 py-3 rounded-lg font-bold text-white text-lg ${loading ? "bg-gray-400" : savedResumes.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}>
+              {loading ? "Analyzing..." : savedResumes.length === 0 ? "Upload a Resume to Analyze" : "Analyze & Get Recommendation"}
             </button>
+
+            {savedResumes.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+                <p>📋 Using {savedResumes.length} resume{savedResumes.length !== 1 ? 's' : ''} from your account</p>
+              </div>
+            )}
           </div>
         )}
 
