@@ -143,30 +143,46 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   const handleGenerateTailoredResume = async () => {
     if (!selectedResume || !assessment) {
       console.error("[Tailored Resume] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+      alert("Resume and assessment data required")
       return
     }
     if (!selectedResume.content) {
       console.error("[Tailored Resume] Resume has no content")
+      alert("Resume has no content")
       return
     }
     setGenerating(true)
     try {
+      console.log("[Tailored Resume] Starting generation for:", selectedResume.name)
+      const payload = {
+        resumeContent: selectedResume.content,
+        jobDescription: assessment.jobDescription,
+        jobTitle: assessment.jobTitle,
+        company: assessment.company
+      }
+      console.log("[Tailored Resume] Payload prepared, content length:", payload.resumeContent.length)
+
       const res = await fetch("/api/tailored-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resumeContent: selectedResume.content,
-          jobDescription: assessment.jobDescription,
-          jobTitle: assessment.jobTitle,
-          company: assessment.company
-        })
+        body: JSON.stringify(payload)
       })
-      if (res.ok) {
-        const data = await res.json()
+
+      console.log("[Tailored Resume] Response status:", res.status)
+      const data = await res.json()
+      console.log("[Tailored Resume] Response data keys:", Object.keys(data))
+      console.log("[Tailored Resume] Tailored resume length:", data.tailoredResume?.length || 0)
+
+      if (res.ok && data.tailoredResume) {
         setTailoredResume(data.tailoredResume)
+        console.log("[Tailored Resume] Successfully set tailored resume")
+      } else {
+        console.error("[Tailored Resume] Response error:", data)
+        alert("Failed to generate tailored resume: " + (data.error || "Unknown error"))
       }
     } catch (err) {
-      console.error("Error generating tailored resume:", err)
+      console.error("[Tailored Resume] Catch error:", err)
+      alert("Error: " + (err instanceof Error ? err.message : String(err)))
     } finally {
       setGenerating(false)
     }
