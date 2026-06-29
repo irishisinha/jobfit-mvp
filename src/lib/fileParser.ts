@@ -14,22 +14,51 @@ if (typeof globalThis !== 'undefined' && !globalThis.DOMMatrix) {
 import * as pdfjsLib from 'pdfjs-dist'
 import * as mammoth from 'mammoth'
 
-// Set up PDF.js worker IMMEDIATELY after import
-// Served from /public (copied from node_modules via postinstall script)
-// Uses .mjs worker since modern pdfjs-dist versions ship that format
+// Set up PDF.js worker with mobile fallback
+// Critical for both desktop and mobile browsers
 if (typeof window !== 'undefined' && typeof pdfjsLib !== 'undefined') {
-  try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
-  } catch (e) {
-    console.warn('Failed to set PDF.js worker source:', e)
+  const setupWorker = () => {
+    try {
+      // Primary: Use local worker file (served from /public)
+      const workerPath = new URL('/pdf.worker.min.mjs', window.location.origin).href
+      console.log('Setting PDF.js worker to:', workerPath)
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath
+
+      // Fallback: Use CDN version if local fails
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc ||
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+
+      console.log('PDF.js worker configured successfully')
+    } catch (e) {
+      console.warn('PDF.js worker setup warning:', e)
+      // Attempt CDN fallback
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+      } catch (fallbackError) {
+        console.error('All worker setup attempts failed:', fallbackError)
+      }
+    }
+  }
+
+  // Set up on document load for mobile compatibility
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupWorker)
+  } else {
+    setupWorker()
   }
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
   const fileName = file.name.toLowerCase()
+  console.log('Extracting from:', fileName, 'Type:', file.type, 'Size:', file.size)
 
   if (fileName.endsWith('.txt')) {
-    return await file.text()
+    try {
+      return await file.text()
+    } catch (e) {
+      console.error('TXT extraction failed:', e)
+      throw new Error(`Failed to read TXT file: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    }
   }
 
   if (fileName.endsWith('.pdf')) {
@@ -37,10 +66,15 @@ export async function extractTextFromFile(file: File): Promise<string> {
   }
 
   if (fileName.endsWith('.docx')) {
-    return await extractDocxText(file)
+    try {
+      return await extractDocxText(file)
+    } catch (e) {
+      console.error('DOCX extraction failed:', e)
+      throw new Error(`Failed to read DOCX file: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    }
   }
 
-  throw new Error(`Unsupported file format: ${file.type}`)
+  throw new Error(`Unsupported file format: ${file.type || 'unknown'}. Supported: .pdf, .txt, .docx`)
 }
 
 async function extractPdfText(file: File): Promise<string> {

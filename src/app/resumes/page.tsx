@@ -56,9 +56,22 @@ export default function ResumesPage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      setDebugMsg("No file selected")
+      return
+    }
+
+    // Mobile-specific logging
+    const isMobile = /iPhone|iPad|Android|Mobile/.test(navigator.userAgent)
+    console.log(`File upload (${isMobile ? 'mobile' : 'desktop'}):`, {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    })
 
     setUploading(true)
+    setDebugMsg("Processing file...")
     try {
       const text = await extractTextFromFile(file)
       const resumeName = file.name.replace(/\.[^/.]+$/, "")
