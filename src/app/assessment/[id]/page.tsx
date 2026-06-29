@@ -141,21 +141,21 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateTailoredResume = async () => {
-    if (!selectedResume || !assessment) {
-      console.error("[Tailored Resume] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+    if (!recommendedResume || !assessment) {
+      console.error("[Tailored Resume] Missing data:", { hasResume: !!recommendedResume, hasAssessment: !!assessment })
       alert("Resume and assessment data required")
       return
     }
-    if (!selectedResume.content) {
+    if (!recommendedResume.content) {
       console.error("[Tailored Resume] Resume has no content")
       alert("Resume has no content")
       return
     }
     setGenerating(true)
     try {
-      console.log("[Tailored Resume] Starting generation for:", selectedResume.name)
+      console.log("[Tailored Resume] Starting generation for:", recommendedResume.name)
       const payload = {
-        resumeContent: selectedResume.content,
+        resumeContent: recommendedResume.content,
         jobDescription: assessment.jobDescription,
         jobTitle: assessment.jobTitle,
         company: assessment.company
@@ -189,18 +189,18 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateCoverLetter = async () => {
-    if (!selectedResume || !assessment) {
-      console.error("[Cover Letter] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+    if (!recommendedResume || !assessment) {
+      console.error("[Cover Letter] Missing data:", { hasResume: !!recommendedResume, hasAssessment: !!assessment })
       return
     }
-    if (!selectedResume.content) {
+    if (!recommendedResume.content) {
       console.error("[Cover Letter] Resume has no content")
       return
     }
     setGenerating(true)
     try {
       const payload = {
-        resumeContent: selectedResume.content,
+        resumeContent: recommendedResume.content,
         jobDescription: assessment.jobDescription,
         jobTitle: assessment.jobTitle,
         company: assessment.company,
@@ -232,7 +232,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateAppQuestion = async (question: string) => {
-    if (!selectedResume) return
+    if (!recommendedResume) return
     setGenerating(true)
     try {
       console.log("[App Question] Sending question:", question)
@@ -241,7 +241,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          resumes: [selectedResume]
+          resumes: [recommendedResume]
         })
       })
       console.log("[App Question] Response status:", res.status)
@@ -458,6 +458,12 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Tailored Resume Tab */}
             {activeTab === "tailor" && (
               <div className="space-y-4">
+                {!recommendedResume && (
+                  <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                    <p className="text-sm text-red-700">⚠️ No recommended resume found. Make sure you have uploaded resumes.</p>
+                  </div>
+                )}
+
                 {recommendedResume && (
                   <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
                     <p className="text-sm text-blue-900 mb-1">📌 Using Recommended Resume</p>
@@ -467,7 +473,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                 )}
                 <button
                   onClick={handleGenerateTailoredResume}
-                  disabled={generating || !selectedResume}
+                  disabled={generating || !recommendedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
                   {generating ? "Generating..." : "Generate Tailored Resume"}
@@ -495,6 +501,12 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Cover Letter Tab */}
             {activeTab === "cover" && (
               <div className="space-y-4">
+                {!recommendedResume && (
+                  <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                    <p className="text-sm text-red-700">⚠️ No recommended resume found. Make sure you have uploaded resumes.</p>
+                  </div>
+                )}
+
                 {recommendedResume && (
                   <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
                     <p className="text-sm text-blue-900 mb-1">📌 Using Recommended Resume</p>
@@ -502,24 +514,32 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                     <p className="text-xs text-blue-700 mt-2">Match Score: {recommendedResume.matchScore}% • Tailor Worth: {recommendedResume.tailorWorth}%</p>
                   </div>
                 )}
+
                 <div>
-                  <label className="block text-sm font-bold mb-2">Tone</label>
-                  <select
-                    value={coverLetterTone}
-                    onChange={(e) => setCoverLetterTone(e.target.value as any)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="professional">Professional</option>
-                    <option value="enthusiastic">Enthusiastic</option>
-                    <option value="warm">Warm</option>
-                  </select>
+                  <label className="block text-sm font-bold mb-2">Choose Tone</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["professional", "enthusiastic", "warm"].map((tone) => (
+                      <button
+                        key={tone}
+                        onClick={() => setCoverLetterTone(tone as any)}
+                        className={`px-3 py-2 rounded font-medium transition ${
+                          coverLetterTone === tone
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                        }`}
+                      >
+                        {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
                 <button
                   onClick={handleGenerateCoverLetter}
-                  disabled={generating || !selectedResume}
+                  disabled={generating || !recommendedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
-                  {generating ? "Generating..." : "Generate Cover Letter"}
+                  {generating ? "Generating..." : `Generate ${coverLetterTone.charAt(0).toUpperCase() + coverLetterTone.slice(1)} Cover Letter`}
                 </button>
                 {coverLetter && (
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -562,7 +582,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                         input.value = ""
                       }
                     }}
-                    disabled={generating || !selectedResume}
+                    disabled={generating || !recommendedResume}
                     className="btn-primary disabled:opacity-50"
                   >
                     {generating ? "Generating..." : "Add Question"}
