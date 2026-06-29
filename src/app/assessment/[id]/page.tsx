@@ -141,11 +141,11 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateTailoredResume = async () => {
-    if (!selectedResume || !assessment) {
-      console.error("[Tailored Resume] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+    if (!recommendedResume || !assessment) {
+      console.error("[Tailored Resume] Missing data:", { hasResume: !!recommendedResume, hasAssessment: !!assessment })
       return
     }
-    if (!selectedResume.content) {
+    if (!recommendedResume.content) {
       console.error("[Tailored Resume] Resume has no content")
       return
     }
@@ -155,7 +155,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          resumeContent: selectedResume.content,
+          resumeContent: recommendedResume.content,
           jobDescription: assessment.jobDescription,
           jobTitle: assessment.jobTitle,
           company: assessment.company
@@ -173,18 +173,18 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateCoverLetter = async () => {
-    if (!selectedResume || !assessment) {
-      console.error("[Cover Letter] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+    if (!recommendedResume || !assessment) {
+      console.error("[Cover Letter] Missing data:", { hasResume: !!recommendedResume, hasAssessment: !!assessment })
       return
     }
-    if (!selectedResume.content) {
+    if (!recommendedResume.content) {
       console.error("[Cover Letter] Resume has no content")
       return
     }
     setGenerating(true)
     try {
       const payload = {
-        resumeContent: selectedResume.content,
+        resumeContent: recommendedResume.content,
         jobDescription: assessment.jobDescription,
         jobTitle: assessment.jobTitle,
         company: assessment.company,
@@ -216,7 +216,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateAppQuestion = async (question: string) => {
-    if (!selectedResume) return
+    if (!recommendedResume) return
     setGenerating(true)
     try {
       console.log("[App Question] Sending question:", question)
@@ -225,7 +225,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          resumes: [selectedResume]
+          resumes: [recommendedResume]
         })
       })
       console.log("[App Question] Response status:", res.status)
@@ -456,7 +456,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                 </div>
                 <button
                   onClick={handleGenerateTailoredResume}
-                  disabled={generating || !selectedResume}
+                  disabled={generating || !recommendedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
                   {generating ? "Generating..." : "Generate Tailored Resume"}
@@ -510,7 +510,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                 </div>
                 <button
                   onClick={handleGenerateCoverLetter}
-                  disabled={generating || !selectedResume}
+                  disabled={generating || !recommendedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
                   {generating ? "Generating..." : "Generate Cover Letter"}
@@ -554,7 +554,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                         input.value = ""
                       }
                     }}
-                    disabled={generating}
+                    disabled={generating || !recommendedResume}
                     className="btn-primary disabled:opacity-50"
                   >
                     {generating ? "..." : "Add"}
