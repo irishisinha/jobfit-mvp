@@ -27,6 +27,16 @@ interface AssessmentResult {
   missingKeywords: string[]
 }
 
+interface ApplicationQuestion {
+  id: string
+  question: string
+  suggestedAnswer: string
+  userAnswer?: string
+  trustScore: number
+  consistencyIssues: string
+  createdAt: string
+}
+
 export default function Assessment() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -49,6 +59,13 @@ export default function Assessment() {
   const [tailoredResume, setTailoredResume] = useState("")
   const [linkedInMessage, setLinkedInMessage] = useState("")
   const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "warm">("professional")
+  const [appQuestions, setAppQuestions] = useState<ApplicationQuestion[]>([])
+  const [newQuestion, setNewQuestion] = useState("")
+  const [generatingAnswer, setGeneratingAnswer] = useState(false)
+  const [selectedAppQuestion, setSelectedAppQuestion] = useState<ApplicationQuestion | null>(null)
+  const [userAnswer, setUserAnswer] = useState("")
+  const [savingAnswer, setSavingAnswer] = useState(false)
+  const [assessmentId, setAssessmentId] = useState<string | null>(null)
 
   const saveToLocalStorage = (assessment: any) => {
     try {
@@ -353,6 +370,77 @@ export default function Assessment() {
     }
   }
 
+  const handleGenerateAppAnswer = async () => {
+    if (!newQuestion.trim() || savedResumes.length === 0) {
+      setError("Please enter a question and ensure you have saved resumes")
+      return
+    }
+
+    setGeneratingAnswer(true)
+    try {
+      const res = await fetch("/api/application-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: newQuestion,
+          assessmentId,
+          resumes: savedResumes
+        })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setAppQuestions([data, ...appQuestions])
+        setSelectedAppQuestion(data)
+        setUserAnswer("")
+        setNewQuestion("")
+      } else {
+        setError("Failed to generate answer")
+      }
+    } catch (err) {
+      console.error("Error:", err)
+      setError("Failed to generate answer")
+    } finally {
+      setGeneratingAnswer(false)
+    }
+  }
+
+  const handleSaveAppAnswer = async () => {
+    if (!selectedAppQuestion || !userAnswer.trim()) {
+      setError("Please enter your answer")
+      return
+    }
+
+    setSavingAnswer(true)
+    try {
+      const res = await fetch(`/api/application-questions/${selectedAppQuestion.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: selectedAppQuestion.question,
+          userAnswer,
+          resumes: savedResumes
+        })
+      })
+
+      if (res.ok) {
+        const updated = await res.json()
+        setSelectedAppQuestion({ ...selectedAppQuestion, ...updated })
+        setAppQuestions(
+          appQuestions.map(q => (q.id === selectedAppQuestion.id ? { ...q, ...updated } : q))
+        )
+        setError("")
+      } else {
+        setError("Failed to save answer")
+      }
+    } catch (err) {
+      console.error("Error:", err)
+      setError("Failed to save answer")
+    } finally {
+      setSavingAnswer(false)
+    }
+  }
+
   if (status === "loading") return <div className="p-8 text-center"><p>Loading assessment...</p></div>
   if (status === "unauthenticated") return <div className="p-8 text-center"><p>Please sign in</p></div>
   if (!session) return <div className="p-8 text-center"><p>Initializing...</p></div>
@@ -599,6 +687,120 @@ export default function Assessment() {
                 </div>
               </div>
             )}
+
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 border-2 border-indigo-300">
+              <h2 className="text-2xl font-bold text-indigo-700 mb-4">💬 Application Questions</h2>
+              <p className="text-gray-700 mb-4">Answer job-specific questions with STAR framework answers based on your resume. The system will verify truthfulness against your background.</p>
+
+              {!selectedAppQuestion ? (
+                <div>
+                  <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
+                    {appQuestions.map(q => (
+                      <div
+                        key={q.id}
+                        onClick={() => {
+                          setSelectedAppQuestion(q)
+                          setUserAnswer(q.userAnswer || "")
+                        }}
+                        className="p-4 bg-white border-2 border-indigo-200 rounded-lg hover:border-indigo-600 cursor-pointer transition"
+                      >
+                        <div className="flex justify-between items-start gap-3">
+                          <p className="font-semibold text-gray-800 flex-1">{q.question}</p>
+                          <span className={`px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ${
+                            q.trustScore >= 80
+                              ? "bg-green-100 text-green-800"
+                              : q.trustScore >= 60
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            {q.trustScore}%
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{q.userAnswer ? "✓ Answered" : "Ready to answer"}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 border-2 border-indigo-200">
+                    <label className="block text-sm font-bold mb-2">Add a New Question</label>
+                    <textarea
+                      value={newQuestion}
+                      onChange={(e) => setNewQuestion(e.target.value)}
+                      placeholder="e.g., 'Tell us about a time you led a team through a challenging project'"
+                      className="w-full h-24 px-4 py-3 border-2 border-gray-300 rounded-lg mb-3"
+                    />
+                    <button
+                      onClick={handleGenerateAppAnswer}
+                      disabled={generatingAnswer || !newQuestion.trim() || savedResumes.length === 0}
+                      className={`w-full px-4 py-2 rounded-lg font-bold text-white ${
+                        generatingAnswer || !newQuestion.trim() || savedResumes.length === 0
+                          ? "bg-gray-400"
+                          : "bg-indigo-600 hover:bg-indigo-700"
+                      }`}
+                    >
+                      {generatingAnswer ? "Generating STAR Answer..." : "Get STAR Answer"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-4">
+                    <h3 className="font-bold text-gray-800 mb-2">Question</h3>
+                    <p className="text-gray-700 bg-white p-4 rounded-lg border border-gray-300">{selectedAppQuestion.question}</p>
+                  </div>
+
+                  <div className="mb-4 pb-4 border-b">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-bold text-indigo-700">AI-Suggested Answer (STAR)</h3>
+                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        selectedAppQuestion.trustScore >= 80
+                          ? "bg-green-100 text-green-800"
+                          : selectedAppQuestion.trustScore >= 60
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}>
+                        Trust: {selectedAppQuestion.trustScore}%
+                      </span>
+                    </div>
+                    <div className="bg-white border-2 border-indigo-200 rounded-lg p-4 mb-2">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedAppQuestion.suggestedAnswer}</p>
+                    </div>
+                    <p className="text-sm text-gray-600"><strong>Consistency:</strong> {selectedAppQuestion.consistencyIssues}</p>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-bold mb-2">Your Answer</label>
+                    <textarea
+                      value={userAnswer}
+                      onChange={(e) => setUserAnswer(e.target.value)}
+                      placeholder="Customize or enter your answer..."
+                      className="w-full h-32 px-4 py-3 border-2 border-gray-300 rounded-lg mb-2"
+                    />
+                    <button
+                      onClick={handleSaveAppAnswer}
+                      disabled={savingAnswer || !userAnswer.trim()}
+                      className={`w-full px-4 py-2 rounded-lg font-bold text-white ${
+                        savingAnswer || !userAnswer.trim()
+                          ? "bg-gray-400"
+                          : "bg-green-600 hover:bg-green-700"
+                      }`}
+                    >
+                      {savingAnswer ? "Checking Truthfulness..." : "Save & Verify Answer"}
+                    </button>
+                    {selectedAppQuestion.userAnswer && (
+                      <p className="text-sm text-green-700 mt-2">✓ Answer saved and verified against your resume</p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedAppQuestion(null)}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                  >
+                    ← Back to Questions
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button onClick={() => setStep("input")} className="w-full btn-secondary py-3 text-lg font-bold">Analyze Another Job</button>
           </div>

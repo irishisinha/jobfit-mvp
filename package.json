@@ -11,6 +11,7 @@
         "postinstall": "prisma generate && node scripts/copy-pdf-worker.js"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.106.0",
         "@prisma/client": "^5.17.0",
         "docx": "^9.7.1",
         "groq-sdk": "^1.2.1",
