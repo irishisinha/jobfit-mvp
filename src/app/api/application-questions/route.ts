@@ -33,34 +33,54 @@ export async function POST(req: NextRequest) {
       .map((r: any) => `Resume: ${r.name}\n${r.content}`)
       .join("\n\n---\n\n")
 
-    const prompt = `You are helping someone answer an application question honestly using their professional experience.
+    const prompt = `You are helping someone craft an authentic, compelling answer to an application question using their actual professional experience.
 
 Application Question: "${question}"
 
 User's Resumes:
 ${resumeText}
 
-Using the STAR framework (Situation, Task, Action, Result), suggest a detailed, truthful answer to this question based on the user's actual experience from their resumes.
+CRAFT AN ANSWER THAT:
 
-IMPORTANT GUIDELINES:
-1. Only use information and experiences from the resumes provided
-2. Do not invent or exaggerate experiences
-3. Use the STAR format:
-   - Situation: Set the context
-   - Task: Describe what was needed
-   - Action: Explain what you did specifically
-   - Result: Share the outcome with metrics/proof
-4. Be specific with details, skills, and achievements mentioned in the resume
-5. Keep the answer professional and concise (2-3 paragraphs)
+1. STARTS WITH CONTEXT, NOT LABELS
+   - Begin with the problem or situation they faced
+   - Why it mattered, what was broken or inefficient
+   - Don't use "Situation:" headers - just tell the story
+
+2. SHOWS THEIR THINKING
+   - Explain HOW they approached the problem, not just WHAT they did
+   - What was their insight or philosophy?
+   - What did they see that others missed?
+   - Use active voice: "I built" not "I was able to build"
+
+3. WEAVE METRICS INTO NARRATIVE
+   - Numbers should emerge naturally in the story
+   - "We went from X to Y because I..." not "40pp improvement, 20% AOV..."
+   - Metrics prove the impact, they don't carry it
+
+4. END WITH INSIGHT, NOT JUST RESULTS
+   - What did they learn?
+   - How does this mindset apply to future challenges?
+   - What's the underlying principle?
+
+5. STAY AUTHENTIC
+   - Only use facts from their resumes
+   - No exaggeration or invented experiences
+   - Show their unique perspective, not generic corporate speak
+   - Sound like a real person, not a template
+
+6. KEEP IT CONCISE
+   - 2-3 paragraphs, conversational tone
+   - Specific details that show they were actually there
 
 Format your response as:
 SUGGESTED ANSWER:
-[Your STAR-formatted answer here]
+[Natural, story-based answer - no labels or headers]
 
 TRUTHFULNESS SCORE: [0-100]
 
 CONSISTENCY NOTES:
-[Any notes about how this aligns with the provided resumes]`
+[Brief note on how this draws from their resume]`
 
     console.log("[App Question API] Calling Groq API")
     const response = await groq.chat.completions.create({
