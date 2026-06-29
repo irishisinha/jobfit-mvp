@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
-import Anthropic from "@anthropic-ai/sdk"
+import Groq from "groq-sdk"
 
-const client = new Anthropic()
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
     console.log("[App Question API] Received request")
+
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === "your-groq-api-key") {
+      console.error("[App Question API] GROQ_API_KEY is not set or is a placeholder")
+      return NextResponse.json(
+        { error: "API configuration error: GROQ_API_KEY is not configured. Please set your Groq API key in environment variables." },
+        { status: 500 }
+      )
+    }
+
     const body = await req.json()
     const { question, resumes } = body
 
@@ -53,10 +62,11 @@ TRUTHFULNESS SCORE: [0-100]
 CONSISTENCY NOTES:
 [Any notes about how this aligns with the provided resumes]`
 
-    console.log("[App Question API] Calling Claude API")
-    const response = await client.messages.create({
-      model: "claude-opus-4-8",
+    console.log("[App Question API] Calling Groq API")
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
       max_tokens: 1000,
+      temperature: 0.7,
       messages: [
         {
           role: "user",
@@ -65,9 +75,8 @@ CONSISTENCY NOTES:
       ]
     })
 
-    console.log("[App Question API] Claude response received")
-    const responseText =
-      response.content[0].type === "text" ? response.content[0].text : ""
+    console.log("[App Question API] Groq response received")
+    const responseText = response.choices[0]?.message?.content || ""
 
     console.log("[App Question API] Response text length:", responseText.length)
 

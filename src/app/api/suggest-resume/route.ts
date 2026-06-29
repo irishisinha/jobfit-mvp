@@ -12,6 +12,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === "your-groq-api-key") {
+      console.error("[Suggest Resume API] GROQ_API_KEY is not set or is a placeholder")
+      return NextResponse.json({
+        suggestions: [],
+        error: "API configuration error: GROQ_API_KEY is not configured. Please set your Groq API key in environment variables."
+      })
+    }
+
     const { jobDescription, jobTitle, company, resumes } = await req.json()
 
     if (!jobDescription?.trim() || !resumes || resumes.length === 0) {
