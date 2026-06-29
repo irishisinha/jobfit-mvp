@@ -442,18 +442,19 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Tailored Resume Tab */}
             {activeTab === "tailor" && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Select Resume</label>
-                  <select
-                    value={selectedResume?.id || ""}
-                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {resumes.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!recommendedResume && (
+                  <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                    <p className="text-sm text-red-700">⚠️ No recommended resume found. Make sure you have uploaded resumes.</p>
+                  </div>
+                )}
+
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p className="text-sm text-blue-900 mb-1">📌 Using Recommended Resume</p>
+                    <p className="text-lg font-bold text-blue-600">{recommendedResume.name}</p>
+                    <p className="text-xs text-blue-700 mt-2">Match Score: {recommendedResume.matchScore}% • Tailor Worth: {recommendedResume.tailorWorth}%</p>
+                  </div>
+                )}
                 <button
                   onClick={handleGenerateTailoredResume}
                   disabled={generating || !recommendedResume}
@@ -484,36 +485,44 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Cover Letter Tab */}
             {activeTab === "cover" && (
               <div className="space-y-4">
+                {!recommendedResume && (
+                  <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                    <p className="text-sm text-red-700">⚠️ No recommended resume found. Make sure you have uploaded resumes.</p>
+                  </div>
+                )}
+
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p className="text-sm text-blue-900 mb-1">📌 Using Recommended Resume</p>
+                    <p className="text-lg font-bold text-blue-600">{recommendedResume.name}</p>
+                    <p className="text-xs text-blue-700 mt-2">Match Score: {recommendedResume.matchScore}% • Tailor Worth: {recommendedResume.tailorWorth}%</p>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-sm font-bold mb-2">Resume</label>
-                  <select
-                    value={selectedResume?.id || ""}
-                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {resumes.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
+                  <label className="block text-sm font-bold mb-2">Choose Tone</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["professional", "enthusiastic", "warm"].map((tone) => (
+                      <button
+                        key={tone}
+                        onClick={() => setCoverLetterTone(tone as any)}
+                        className={`px-3 py-2 rounded font-medium transition ${
+                          coverLetterTone === tone
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                        }`}
+                      >
+                        {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                      </button>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-2">Tone</label>
-                  <select
-                    value={coverLetterTone}
-                    onChange={(e) => setCoverLetterTone(e.target.value as any)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="professional">Professional</option>
-                    <option value="enthusiastic">Enthusiastic</option>
-                    <option value="warm">Warm</option>
-                  </select>
+                  </div>
                 </div>
                 <button
                   onClick={handleGenerateCoverLetter}
                   disabled={generating || !recommendedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
-                  {generating ? "Generating..." : "Generate Cover Letter"}
+                  {generating ? "Generating..." : `Generate ${coverLetterTone.charAt(0).toUpperCase() + coverLetterTone.slice(1)} Cover Letter`}
                 </button>
                 {coverLetter && (
                   <div className="bg-gray-50 p-4 rounded-lg">
