@@ -64,26 +64,34 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const prisma = new PrismaClient()
-  
+
   try {
     const session = await getServerSession(authOptions)
+    console.log("[Assessment GET] Session email:", session?.user?.email)
+
     if (!session?.user?.email) {
-      return NextResponse.json([])
+      console.warn("[Assessment GET] No session email found")
+      return NextResponse.json([], { status: 200 })
     }
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
 
+    console.log("[Assessment GET] User found:", user?.id)
+
     if (!user) {
+      console.warn("[Assessment GET] No user record found for email:", session.user.email)
       await prisma.$disconnect()
-      return NextResponse.json([])
+      return NextResponse.json([], { status: 200 })
     }
 
     const assessments = await prisma.assessment.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" }
     })
+
+    console.log("[Assessment GET] Found assessments:", assessments.length)
 
     await prisma.$disconnect()
     return NextResponse.json(assessments.map((a: any) => ({
@@ -93,9 +101,13 @@ export async function GET(req: NextRequest) {
       missingKeywords: tryParse(a.missingKeywords)
     })))
   } catch (error: any) {
+    console.error("[Assessment GET] Error:", error.message)
+    console.error("[Assessment GET] Error details:", error)
     await prisma.$disconnect()
-    console.error("GET Error:", error)
-    return NextResponse.json([])
+    return NextResponse.json({
+      error: "Failed to load assessments",
+      details: error.message
+    }, { status: 500 })
   }
 }
 
