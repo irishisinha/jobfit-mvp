@@ -5,10 +5,15 @@ const client = new Anthropic()
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("[App Question API] Received request")
     const body = await req.json()
     const { question, resumes } = body
 
+    console.log("[App Question API] Question:", question)
+    console.log("[App Question API] Resumes count:", resumes?.length || 0)
+
     if (!question || !resumes || resumes.length === 0) {
+      console.log("[App Question API] Missing question or resumes")
       return NextResponse.json(
         { error: "Question and resumes are required" },
         { status: 400 }
@@ -48,6 +53,7 @@ TRUTHFULNESS SCORE: [0-100]
 CONSISTENCY NOTES:
 [Any notes about how this aligns with the provided resumes]`
 
+    console.log("[App Question API] Calling Claude API")
     const response = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 1000,
@@ -59,8 +65,11 @@ CONSISTENCY NOTES:
       ]
     })
 
+    console.log("[App Question API] Claude response received")
     const responseText =
       response.content[0].type === "text" ? response.content[0].text : ""
+
+    console.log("[App Question API] Response text length:", responseText.length)
 
     const suggestedAnswerMatch = responseText.match(
       /SUGGESTED ANSWER:\s*([\s\S]*?)(?=TRUTHFULNESS|$)/
@@ -77,6 +86,8 @@ CONSISTENCY NOTES:
     const consistencyNotes = consistencyMatch
       ? consistencyMatch[1].trim()
       : "Answer generated based on your resume"
+
+    console.log("[App Question API] Returning response with score:", trustScore)
 
     return NextResponse.json({
       id: `q_${Date.now()}`,
