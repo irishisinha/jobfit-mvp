@@ -30,8 +30,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterVerdict, setFilterVerdict] = useState("all")
-  const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
-  const [updatingStatus, setUpdatingStatus] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -261,50 +259,44 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-4">
             {filtered.map((a) => (
-              <div key={a.id} className="bg-white rounded-lg p-6 shadow hover:shadow-lg transition cursor-pointer" onClick={() => setSelectedAssessment(a)}>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-gray-600 uppercase font-bold">Position</p>
-                    <p className="text-lg font-bold text-gray-800">{a.jobTitle}</p>
+              <Link key={a.id} href={`/assessment/${a.id}`}>
+                <div className="bg-white rounded-lg p-6 shadow hover:shadow-lg transition cursor-pointer">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase font-bold">Position</p>
+                      <p className="text-lg font-bold text-gray-800">{a.jobTitle}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase font-bold">Company</p>
+                      <p className="text-lg font-bold text-gray-800">{a.company}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase font-bold">Date</p>
+                      <p className="text-lg font-semibold">{new Date(a.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase font-bold">Fit Score</p>
+                      <p className="text-2xl font-bold text-blue-600">{a.fitScore}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 uppercase font-bold">Verdict</p>
+                      <p className={`text-lg font-bold ${a.verdict === "Strong Fit" ? "text-green-600" : a.verdict === "Moderate Fit" ? "text-yellow-600" : "text-red-600"}`}>
+                        {a.verdict}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-600 uppercase font-bold">Company</p>
-                    <p className="text-lg font-bold text-gray-800">{a.company}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600 uppercase font-bold">Date</p>
-                    <p className="text-lg font-semibold">{new Date(a.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600 uppercase font-bold">Fit Score</p>
-                    <p className="text-2xl font-bold text-blue-600">{a.fitScore}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600 uppercase font-bold">Status</p>
-                    <p className={`text-sm font-bold px-3 py-1 rounded inline-block ${
-                      a.status === "Applied" ? "bg-blue-100 text-blue-800" :
-                      a.status === "In Progress" ? "bg-yellow-100 text-yellow-800" :
-                      a.status === "Interviewed" ? "bg-purple-100 text-purple-800" :
-                      a.status === "Offered" ? "bg-green-100 text-green-800" :
-                      a.status === "Accepted" ? "bg-emerald-100 text-emerald-800" :
-                      a.status === "Rejected" ? "bg-red-100 text-red-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}>
-                      {a.status}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  <div className="bg-blue-50 p-2 rounded"><p className="text-xs text-gray-600">ATS</p><p className="font-bold text-blue-600">{a.atsMatch}%</p></div>
-                  <div className="bg-purple-50 p-2 rounded"><p className="text-xs text-gray-600">Success</p><p className="font-bold text-purple-600">{a.successProbability}%</p></div>
-                  <div className="bg-orange-50 p-2 rounded"><p className="text-xs text-gray-600">Tailor</p><p className="font-bold text-orange-600">{a.tailorWorth}%</p></div>
-                  <div className="bg-green-50 p-2 rounded"><p className="text-xs text-gray-600">Strengths</p><p className="font-bold">{a.strengths?.length || 0}</p></div>
-                </div>
+                  <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="bg-blue-50 p-2 rounded"><p className="text-xs text-gray-600">ATS</p><p className="font-bold text-blue-600">{a.atsMatch}%</p></div>
+                    <div className="bg-purple-50 p-2 rounded"><p className="text-xs text-gray-600">Success</p><p className="font-bold text-purple-600">{a.successProbability}%</p></div>
+                    <div className="bg-orange-50 p-2 rounded"><p className="text-xs text-gray-600">Tailor</p><p className="font-bold text-orange-600">{a.tailorWorth}%</p></div>
+                    <div className="bg-green-50 p-2 rounded"><p className="text-xs text-gray-600">Strengths</p><p className="font-bold">{a.strengths?.length || 0}</p></div>
+                  </div>
 
-                {a.strengths && a.strengths.length > 0 && <p className="text-sm text-green-700 mb-2"><strong>Strengths:</strong> {a.strengths.slice(0, 2).join(", ")}{a.strengths.length > 2 ? "..." : ""}</p>}
-                {a.gaps && a.gaps.length > 0 && <p className="text-sm text-red-700"><strong>Gaps:</strong> {a.gaps.slice(0, 2).join(", ")}{a.gaps.length > 2 ? "..." : ""}</p>}
-              </div>
+                  {a.strengths && a.strengths.length > 0 && <p className="text-sm text-green-700 mb-2"><strong>Strengths:</strong> {a.strengths.slice(0, 2).join(", ")}{a.strengths.length > 2 ? "..." : ""}</p>}
+                  {a.gaps && a.gaps.length > 0 && <p className="text-sm text-red-700"><strong>Gaps:</strong> {a.gaps.slice(0, 2).join(", ")}{a.gaps.length > 2 ? "..." : ""}</p>}
+                </div>
+              </Link>
             ))}
           </div>
           )}
