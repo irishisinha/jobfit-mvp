@@ -29,21 +29,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Failed to fetch URL (${response.status})` }, { status: 400 })
     }
 
-    const html = await response.text()
+    let html = await response.text()
 
     if (!html || html.length < 100) {
       return NextResponse.json({ error: "Page content too short or empty" }, { status: 400 })
     }
 
-    // Extract text from HTML, preserving structure
-    let text = html
-      // Remove script and style tags with their content
+    // Remove script and style tags with their content
+    html = html
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
       .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
-      // Remove comments
       .replace(/<!--[\s\S]*?-->/g, " ")
+
+    // Try to extract job description from common containers
+    let contentMatch = html.match(
+      /<(?:article|main|section|div[^>]*(?:class|id)="[^"]*(?:description|content|job-details|job-description|description-section)[^"]*"[^>]*)(?:[^>])*>[\s\S]*?<\/(?:article|main|section|div)>/i
+    )
+
+    if (contentMatch) {
+      html = contentMatch[0]
+    }
+
+    // Extract text from HTML, preserving structure
+    let text = html
       // Convert common block elements to newlines for better separation
-      .replace(/<\/(p|div|section|article|li|blockquote|h\d)>/gi, "\n")
+      .replace(/<\/(p|div|section|article|li|blockquote|h\d|ul|ol|tr|td)>/gi, "\n")
       .replace(/<(br|hr)\s*\/?>/gi, "\n")
       // Remove all other HTML tags
       .replace(/<[^>]+>/g, " ")
@@ -71,15 +81,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No readable content found" }, { status: 400 })
     }
 
-    // Increase limit to 15000 characters to capture complete JDs
-    // Most comprehensive job descriptions are under this limit
-    const jobDescription = text.substring(0, 22000)
+    // Increase limit to 50000 characters to capture complete JDs
+    // Most job postings are under this limit, even with detailed requirements
+    const MAX_CHARS = 50000
+    const jobDescription = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) : text
 
     return NextResponse.json({
       jobDescription,
       source: url,
       contentLength: text.length,
-      truncated: text.length > 22000
+      truncated: text.length > MAX_CHARS
     })
   } catch (err: any) {
     console.error("Fetch JD error:", err)
