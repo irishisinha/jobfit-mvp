@@ -75,9 +75,10 @@ export default function ResumesPage() {
       } else {
         throw new Error("Failed to save")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error)
-      setDebugMsg("Failed to upload resume")
+      const errorMsg = error?.message || String(error)
+      setDebugMsg(`❌ Error: ${errorMsg}`)
     } finally {
       setUploading(false)
     }
