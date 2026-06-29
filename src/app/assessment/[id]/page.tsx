@@ -38,6 +38,12 @@ interface ApplicationQuestion {
   consistencyIssues?: string
 }
 
+interface RecommendedResume extends SavedResume {
+  matchScore: number
+  tailorWorth: number
+  recommendation: string
+}
+
 export default function AssessmentDetailPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -53,6 +59,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   const [appQuestions, setAppQuestions] = useState<ApplicationQuestion[]>([])
   const [generating, setGenerating] = useState(false)
   const [status_state, setStatusState] = useState("")
+  const [recommendedResume, setRecommendedResume] = useState<RecommendedResume | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -64,6 +71,43 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
       loadResumes()
     }
   }, [status, params.id])
+
+  const getRecommendedResume = async () => {
+    if (!assessment || resumes.length === 0) return
+    try {
+      const res = await fetch("/api/suggest-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobDescription: assessment.jobDescription,
+          jobTitle: assessment.jobTitle,
+          company: assessment.company,
+          resumes
+        })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const suggestions = data.suggestions || []
+        const scored = resumes.map(r => {
+          const match = suggestions.find((s: any) => s.id === r.id)
+          return { ...r, matchScore: match?.score || 50, tailorWorth: match?.tailorWorth || 0, recommendation: match?.recommendation || "" }
+        })
+        const sorted = scored.sort((a: any, b: any) => (b.matchScore || 0) - (a.matchScore || 0))
+        if (sorted.length > 0) {
+          setRecommendedResume(sorted[0])
+          setSelectedResume(sorted[0])
+        }
+      }
+    } catch (err) {
+      console.error("Error getting resume recommendation:", err)
+    }
+  }
+
+  useEffect(() => {
+    if (assessment && resumes.length > 0 && !recommendedResume) {
+      getRecommendedResume()
+    }
+  }, [assessment, resumes])
 
   const loadAssessment = async () => {
     try {
@@ -338,24 +382,41 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Tailored Resume Tab */}
             {activeTab === "tailor" && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Select Resume</label>
-                  <select
-                    value={selectedResume?.id || ""}
-                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {resumes.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p className="text-sm font-bold text-blue-900 mb-1">Recommended Resume</p>
+                    <p className="text-2xl font-bold text-blue-600">{recommendedResume.name}</p>
+                    <div className="flex gap-4 mt-2">
+                      <span className="inline-block bg-blue-200 text-blue-800 px-3 py-1 rounded text-sm font-bold">Match: {recommendedResume.matchScore}%</span>
+                      <span className="inline-block bg-orange-200 text-orange-800 px-3 py-1 rounded text-sm font-bold">Tailor Worth: {recommendedResume.tailorWorth}%</span>
+                    </div>
+                    {recommendedResume.recommendation && (
+                      <p className="text-sm text-blue-700 mt-3">{recommendedResume.recommendation}</p>
+                    )}
+                  </div>
+                )}
+
+                {!recommendedResume && resumes.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Select Resume</label>
+                    <select
+                      value={selectedResume?.id || ""}
+                      onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    >
+                      {resumes.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <button
                   onClick={handleGenerateTailoredResume}
                   disabled={generating || !selectedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
-                  {generating ? "Generating..." : "Generate Tailored Resume"}
+                  {generating ? "Generating..." : `Generate Tailored Resume${recommendedResume ? " (" + recommendedResume.name + ")" : ""}`}
                 </button>
                 {tailoredResume && (
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -369,18 +430,28 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Cover Letter Tab */}
             {activeTab === "cover" && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Resume</label>
-                  <select
-                    value={selectedResume?.id || ""}
-                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {resumes.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600 mb-4">
+                    <p className="text-sm font-bold text-blue-900">Using Recommended Resume</p>
+                    <p className="text-lg font-bold text-blue-600">{recommendedResume.name}</p>
+                    <p className="text-sm text-blue-700 mt-2">Match Score: {recommendedResume.matchScore}%</p>
+                  </div>
+                )}
+
+                {!recommendedResume && resumes.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Resume</label>
+                    <select
+                      value={selectedResume?.id || ""}
+                      onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    >
+                      {resumes.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-bold mb-2">Tone</label>
                   <select
