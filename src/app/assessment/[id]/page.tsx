@@ -141,7 +141,14 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateTailoredResume = async () => {
-    if (!selectedResume || !assessment) return
+    if (!selectedResume || !assessment) {
+      console.error("[Tailored Resume] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+      return
+    }
+    if (!selectedResume.content) {
+      console.error("[Tailored Resume] Resume has no content")
+      return
+    }
     setGenerating(true)
     try {
       const res = await fetch("/api/tailored-resume", {
@@ -166,7 +173,14 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateCoverLetter = async () => {
-    if (!selectedResume || !assessment) return
+    if (!selectedResume || !assessment) {
+      console.error("[Cover Letter] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+      return
+    }
+    if (!selectedResume.content) {
+      console.error("[Cover Letter] Resume has no content")
+      return
+    }
     setGenerating(true)
     try {
       const payload = {
