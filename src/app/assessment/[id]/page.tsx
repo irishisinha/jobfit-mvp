@@ -60,6 +60,8 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   const [generating, setGenerating] = useState(false)
   const [status_state, setStatusState] = useState("")
   const [recommendedResume, setRecommendedResume] = useState<RecommendedResume | null>(null)
+  const [loadingQuestionId, setLoadingQuestionId] = useState<string | null>(null)
+  const [questionErrors, setQuestionErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -216,8 +218,26 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateAppQuestion = async (question: string) => {
-    if (!recommendedResume) return
-    setGenerating(true)
+    if (!recommendedResume) {
+      alert("No recommended resume found. Please upload resumes first.")
+      return
+    }
+
+    const questionId = `q_${Date.now()}`
+
+    // Add question immediately with loading state
+    const tempQuestion: ApplicationQuestion = {
+      id: questionId,
+      question,
+      suggestedAnswer: "",
+      trustScore: 0,
+      consistencyIssues: undefined
+    }
+
+    setAppQuestions([...appQuestions, tempQuestion])
+    setLoadingQuestionId(questionId)
+    setQuestionErrors(prev => ({ ...prev, [questionId]: "" }))
+
     try {
       console.log("[App Question] Sending question:", question)
       const res = await fetch("/api/application-questions", {
@@ -233,15 +253,22 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
       console.log("[App Question] Response data:", data)
 
       if (res.ok && data) {
-        setAppQuestions([...appQuestions, data])
-        console.log("[App Question] Added to questions, total count:", appQuestions.length + 1)
+        // Update the question with the actual response
+        setAppQuestions(prev =>
+          prev.map(q => q.id === questionId ? { ...data, id: questionId } : q)
+        )
+        console.log("[App Question] Question answered successfully")
       } else {
-        console.error("[App Question] Failed to get answer:", data)
+        const errorMsg = data.error || "Failed to generate answer"
+        console.error("[App Question] Failed to get answer:", errorMsg)
+        setQuestionErrors(prev => ({ ...prev, [questionId]: errorMsg }))
       }
-    } catch (err) {
+    } catch (err: any) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
       console.error("[App Question] Error:", err)
+      setQuestionErrors(prev => ({ ...prev, [questionId]: "Network error: " + errorMsg }))
     } finally {
-      setGenerating(false)
+      setLoadingQuestionId(null)
     }
   }
 
@@ -548,12 +575,20 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {activeTab === "questions" && (
               <div className="space-y-4">
                 <p className="text-sm text-gray-600 mb-4">Add application questions to get tailored answers based on your resume</p>
+
+                {!recommendedResume && (
+                  <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-600">
+                    <p className="text-sm text-red-700">⚠️ No recommended resume found. Please upload resumes first.</p>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Enter a question..."
                     id="app-question-input"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                    disabled={loadingQuestionId !== null}
                   />
                   <button
                     onClick={() => {
@@ -563,24 +598,44 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                         input.value = ""
                       }
                     }}
-                    disabled={generating || !recommendedResume}
+                    disabled={loadingQuestionId !== null || !recommendedResume}
                     className="btn-primary disabled:opacity-50"
                   >
-                    {generating ? "..." : "Add"}
+                    {loadingQuestionId !== null ? "⏳ Processing..." : "Add Question"}
                   </button>
                 </div>
 
+                {appQuestions.length === 0 && loadingQuestionId === null && (
+                  <div className="bg-gray-50 p-4 rounded-lg text-center">
+                    <p className="text-sm text-gray-600">No questions added yet. Add a question to get AI-powered answers.</p>
+                  </div>
+                )}
+
                 {appQuestions.map(q => (
                   <div key={q.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-bold mb-2">{q.question}</h4>
-                    <div className="mb-3 p-3 bg-white rounded border-l-4 border-blue-600">
-                      <p className="text-sm mb-2"><strong>Suggested Answer:</strong></p>
-                      <p className="text-sm text-gray-700">{q.suggestedAnswer}</p>
-                    </div>
-                    <div className="flex gap-4 text-xs">
-                      <span className="text-blue-600"><strong>Trust Score:</strong> {q.trustScore}%</span>
-                      {q.userAnswer && <span className="text-green-600"><strong>Your Answer:</strong> Saved</span>}
-                    </div>
+                    <h4 className="font-bold mb-3 text-lg">❓ {q.question}</h4>
+
+                    {loadingQuestionId === q.id ? (
+                      <div className="bg-blue-50 p-4 rounded border-l-4 border-blue-600">
+                        <p className="text-sm text-blue-700">⏳ <strong>Generating answer...</strong> This may take a few moments.</p>
+                      </div>
+                    ) : questionErrors[q.id] ? (
+                      <div className="bg-red-50 p-4 rounded border-l-4 border-red-600 mb-3">
+                        <p className="text-sm text-red-700"><strong>❌ Error:</strong> {questionErrors[q.id]}</p>
+                      </div>
+                    ) : q.suggestedAnswer ? (
+                      <>
+                        <div className="mb-3 p-3 bg-white rounded border-l-4 border-blue-600">
+                          <p className="text-sm mb-2"><strong>✨ Suggested Answer:</strong></p>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{q.suggestedAnswer}</p>
+                        </div>
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-blue-600"><strong>Trust Score:</strong> {q.trustScore}%</span>
+                          {q.consistencyIssues && <span className="text-gray-600"><strong>Consistency:</strong> {q.consistencyIssues}</span>}
+                          {q.userAnswer && <span className="text-green-600"><strong>Your Answer:</strong> Saved</span>}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 ))}
               </div>
