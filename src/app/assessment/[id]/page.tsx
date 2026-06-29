@@ -169,23 +169,33 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
     if (!selectedResume || !assessment) return
     setGenerating(true)
     try {
+      const payload = {
+        resumeContent: selectedResume.content,
+        jobDescription: assessment.jobDescription,
+        jobTitle: assessment.jobTitle,
+        company: assessment.company,
+        tone: coverLetterTone
+      }
+      console.log("[Cover Letter] Sending request with payload:", { ...payload, resumeContent: payload.resumeContent.substring(0, 100) + "..." })
+
       const res = await fetch("/api/cover-letters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resumeContent: selectedResume.content,
-          jobDescription: assessment.jobDescription,
-          jobTitle: assessment.jobTitle,
-          company: assessment.company,
-          tone: coverLetterTone
-        })
+        body: JSON.stringify(payload)
       })
-      if (res.ok) {
-        const data = await res.json()
+
+      console.log("[Cover Letter] Response status:", res.status)
+      const data = await res.json()
+      console.log("[Cover Letter] Response data keys:", Object.keys(data))
+
+      if (res.ok && data.coverLetter) {
         setCoverLetter(data.coverLetter)
+        console.log("[Cover Letter] Successfully set cover letter")
+      } else {
+        console.error("[Cover Letter] Response not OK or missing coverLetter:", data)
       }
     } catch (err) {
-      console.error("Error generating cover letter:", err)
+      console.error("[Cover Letter] Error:", err)
     } finally {
       setGenerating(false)
     }

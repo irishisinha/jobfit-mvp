@@ -9,12 +9,23 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
+      console.log("[Cover Letter API] Not authenticated")
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
+    console.log("[Cover Letter API] Starting cover letter generation")
     const { resumeContent, jobDescription, tone = "professional", jobTitle, company, strengths = [], gaps = [], missingKeywords = [] } = await req.json()
 
+    console.log("[Cover Letter API] Received request with:", {
+      resumeLength: resumeContent?.length || 0,
+      jobDescriptionLength: jobDescription?.length || 0,
+      jobTitle,
+      company,
+      tone
+    })
+
     if (!resumeContent?.trim() || !jobDescription?.trim()) {
+      console.log("[Cover Letter API] Missing fields")
       return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
     }
 
@@ -54,6 +65,8 @@ CRITICAL REQUIREMENTS:
 
 Return ONLY the cover letter content - no additional text or explanations.`
 
+    console.log("[Cover Letter API] Calling Groq API with prompt length:", prompt.length)
+
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       max_tokens: 2000,
@@ -61,17 +74,23 @@ Return ONLY the cover letter content - no additional text or explanations.`
       messages: [{ role: "user", content: prompt }],
     })
 
+    console.log("[Cover Letter API] Groq response received, choices length:", completion.choices?.length)
+
     const coverLetter = completion.choices[0]?.message?.content?.trim()
+
+    console.log("[Cover Letter API] Cover letter generated, length:", coverLetter?.length || 0)
+
     if (!coverLetter) {
+      console.log("[Cover Letter API] Empty response from Groq")
       return NextResponse.json({ coverLetter: "Unable to generate cover letter at this time" }, { status: 500 })
     }
 
+    console.log("[Cover Letter API] Returning cover letter successfully")
     return NextResponse.json({ coverLetter })
   } catch (error) {
-    console.error("Cover letter error:", error)
+    console.error("[Cover Letter API] Error:", error)
     return NextResponse.json({
-      error: "Failed to generate cover letter",
-      message: error instanceof Error ? error.message : String(error),
+      coverLetter: "Unable to generate cover letter at this time. Please try again."
     }, { status: 500 })
   }
 }
