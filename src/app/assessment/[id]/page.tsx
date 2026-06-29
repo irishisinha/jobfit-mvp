@@ -479,18 +479,13 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Cover Letter Tab */}
             {activeTab === "cover" && (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Resume</label>
-                  <select
-                    value={selectedResume?.id || ""}
-                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {resumes.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                    <p className="text-sm text-blue-900 mb-1">📌 Using Recommended Resume</p>
+                    <p className="text-lg font-bold text-blue-600">{recommendedResume.name}</p>
+                    <p className="text-xs text-blue-700 mt-2">Match Score: {recommendedResume.matchScore}% • Tailor Worth: {recommendedResume.tailorWorth}%</p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-bold mb-2">Tone</label>
                   <select
@@ -540,31 +535,46 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                     placeholder="Enter a question..."
                     id="app-question-input"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                    disabled={generating}
                   />
                   <button
                     onClick={() => {
                       const input = document.getElementById("app-question-input") as HTMLInputElement
                       if (input.value.trim()) {
+                        console.log("[UI] Adding question:", input.value)
                         handleGenerateAppQuestion(input.value)
                         input.value = ""
                       }
                     }}
-                    disabled={generating}
+                    disabled={generating || !selectedResume}
                     className="btn-primary disabled:opacity-50"
                   >
-                    {generating ? "..." : "Add"}
+                    {generating ? "Generating..." : "Add Question"}
                   </button>
                 </div>
 
-                {appQuestions.map(q => (
-                  <div key={q.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-bold mb-2">{q.question}</h4>
+                {generating && (
+                  <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-600">
+                    <p className="text-sm text-yellow-700">⏳ Generating answer...</p>
+                  </div>
+                )}
+
+                {appQuestions.length === 0 && !generating && (
+                  <div className="bg-gray-50 p-4 rounded-lg text-center">
+                    <p className="text-sm text-gray-600">No questions added yet. Add a question to get AI-powered answers.</p>
+                  </div>
+                )}
+
+                {appQuestions.map((q, idx) => (
+                  <div key={q.id || idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-bold mb-3 text-lg">❓ {q.question}</h4>
                     <div className="mb-3 p-3 bg-white rounded border-l-4 border-blue-600">
-                      <p className="text-sm mb-2"><strong>Suggested Answer:</strong></p>
-                      <p className="text-sm text-gray-700">{q.suggestedAnswer}</p>
+                      <p className="text-sm mb-2"><strong>✨ Suggested Answer:</strong></p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{q.suggestedAnswer}</p>
                     </div>
                     <div className="flex gap-4 text-xs">
                       <span className="text-blue-600"><strong>Trust Score:</strong> {q.trustScore}%</span>
+                      <span className="text-gray-600"><strong>Consistency:</strong> {q.consistencyIssues || "Verified"}</span>
                       {q.userAnswer && <span className="text-green-600"><strong>Your Answer:</strong> Saved</span>}
                     </div>
                   </div>
