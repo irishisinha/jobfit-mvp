@@ -73,13 +73,13 @@ export async function POST(req: NextRequest) {
 
     // Increase limit to 15000 characters to capture complete JDs
     // Most comprehensive job descriptions are under this limit
-    const jobDescription = text.substring(0, 15000)
+    const jobDescription = text.substring(0, 22000)
 
     return NextResponse.json({
       jobDescription,
       source: url,
       contentLength: text.length,
-      truncated: text.length > 15000
+      truncated: text.length > 22000
     })
   } catch (err: any) {
     console.error("Fetch JD error:", err)
