@@ -73,10 +73,21 @@ export async function POST(req: NextRequest) {
     if (!url) return NextResponse.json({ error: "URL required" }, { status: 400 })
 
     // Validate URL format
+    let parsedUrl: URL
     try {
-      new URL(url)
+      parsedUrl = new URL(url)
     } catch {
       return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
+    }
+
+    // LinkedIn requires manual copy-paste due to Terms of Service
+    // Automated scraping violates LinkedIn's TOS and risks account/IP blocking
+    if (parsedUrl.hostname.includes("linkedin.com")) {
+      return NextResponse.json({
+        error: "LinkedIn job descriptions must be copied and pasted manually",
+        reason: "LinkedIn's Terms of Service prohibit automated content extraction. We recommend: 1) Opening the LinkedIn job link, 2) Copying the job description, 3) Pasting it in the 'Paste JD' tab. This protects both your account and our service.",
+        status: 403
+      }, { status: 403 })
     }
 
     let html: string
