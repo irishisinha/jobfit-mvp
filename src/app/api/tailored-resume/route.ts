@@ -10,9 +10,9 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const { resume, jobDescription } = await req.json()
+    const { resumeContent, jobDescription } = await req.json()
 
-    if (!resume?.trim() || !jobDescription?.trim()) {
+    if (!resumeContent?.trim() || !jobDescription?.trim()) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 })
     }
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
         content: `Create a tailored 2-page professional resume based on this:
 
 ORIGINAL RESUME:
-${resume.substring(0, 2000)}
+${resumeContent.substring(0, 2000)}
 
 TARGET JOB:
 ${jobDescription.substring(0, 1500)}
@@ -44,7 +44,7 @@ OUTPUT ONLY THE RESUME - NO EXPLANATIONS:`,
       max_tokens: 4000,
     })
 
-    const tailoredResume = completion.choices[0]?.message?.content || resume
+    const tailoredResume = completion.choices[0]?.message?.content || resumeContent
 
     return NextResponse.json({
       tailoredResume: tailoredResume.trim()

@@ -38,6 +38,12 @@ interface ApplicationQuestion {
   consistencyIssues?: string
 }
 
+interface RecommendedResume extends SavedResume {
+  matchScore: number
+  tailorWorth: number
+  recommendation: string
+}
+
 export default function AssessmentDetailPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -53,6 +59,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   const [appQuestions, setAppQuestions] = useState<ApplicationQuestion[]>([])
   const [generating, setGenerating] = useState(false)
   const [status_state, setStatusState] = useState("")
+  const [recommendedResume, setRecommendedResume] = useState<RecommendedResume | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -64,6 +71,43 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
       loadResumes()
     }
   }, [status, params.id])
+
+  const getRecommendedResume = async () => {
+    if (!assessment || resumes.length === 0) return
+    try {
+      const res = await fetch("/api/suggest-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobDescription: assessment.jobDescription,
+          jobTitle: assessment.jobTitle,
+          company: assessment.company,
+          resumes
+        })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const suggestions = data.suggestions || []
+        const scored = resumes.map(r => {
+          const match = suggestions.find((s: any) => s.id === r.id)
+          return { ...r, matchScore: match?.score || 50, tailorWorth: match?.tailorWorth || 0, recommendation: match?.recommendation || "" }
+        })
+        const sorted = scored.sort((a: any, b: any) => (b.matchScore || 0) - (a.matchScore || 0))
+        if (sorted.length > 0) {
+          setRecommendedResume(sorted[0])
+          setSelectedResume(sorted[0])
+        }
+      }
+    } catch (err) {
+      console.error("Error getting resume recommendation:", err)
+    }
+  }
+
+  useEffect(() => {
+    if (assessment && resumes.length > 0 && !recommendedResume) {
+      getRecommendedResume()
+    }
+  }, [assessment, resumes])
 
   const loadAssessment = async () => {
     try {
@@ -254,6 +298,20 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Overview Tab */}
             {activeTab === "overview" && (
               <div className="space-y-6">
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-600">
+                    <p className="text-sm font-bold text-blue-900 mb-2">Recommended Resume for This Role</p>
+                    <p className="text-2xl font-bold text-blue-600 mb-3">{recommendedResume.name}</p>
+                    <div className="flex flex-wrap gap-3 mb-3">
+                      <span className="inline-block bg-blue-200 text-blue-900 px-4 py-2 rounded font-bold">Match Score: {recommendedResume.matchScore}%</span>
+                      <span className="inline-block bg-orange-200 text-orange-900 px-4 py-2 rounded font-bold">Tailor Worth: {recommendedResume.tailorWorth}%</span>
+                    </div>
+                    {recommendedResume.recommendation && (
+                      <p className="text-sm text-blue-700">{recommendedResume.recommendation}</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-xs text-gray-600 uppercase">Fit Score</p>
