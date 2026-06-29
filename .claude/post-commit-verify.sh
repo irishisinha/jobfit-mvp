@@ -1,0 +1,21 @@
+#!/bin/bash
+# Post-commit verification script for JobFit assessment features
+
+echo "=== JobFit Post-Commit Verification ==="
+echo "Commit: $(git rev-parse --short HEAD)"
+echo "Message: $(git log -1 --pretty=%B)"
+echo ""
+echo "📋 Verification Checklist:"
+echo "1. ✅ Code changes committed"
+echo "2. ⏳ Awaiting deployment verification..."
+echo ""
+echo "Next steps:"
+echo "- Deploy build $(git rev-parse --short HEAD) to production"
+echo "- Open assessment detail page"
+echo "- Follow checklist in .claude/verification-checklist.md"
+echo ""
+echo "Testing requirements:"
+echo "1. Verify assessment loads with all sections"
+echo "2. Test tailored resume (recommended only)"
+echo "3. Test cover letter (all 3 tones)"
+echo "4. Test application questions"
