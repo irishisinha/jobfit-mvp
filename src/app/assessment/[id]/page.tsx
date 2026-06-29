@@ -185,12 +185,20 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
     }
   }
 
-  if (status === "loading" || loading) {
+  if (status === "loading") {
     return <div className="p-8 text-center">Loading assessment...</div>
   }
 
-  if (!session || !assessment) {
-    return <div className="p-8 text-center">Assessment not found</div>
+  if (!session) {
+    return null
+  }
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-50 p-8 text-center">Loading assessment...</div>
+  }
+
+  if (!assessment) {
+    return <div className="min-h-screen bg-gray-50 p-8 text-center">Assessment not found</div>
   }
 
   return (
