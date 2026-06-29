@@ -25,39 +25,47 @@ export async function POST(req: NextRequest) {
         try {
           const completion = await groq.chat.completions.create({
             model: "llama-3.1-8b-instant",
-            max_tokens: 200,
+            max_tokens: 300,
             temperature: 0,
             messages: [{
               role: "user",
-              content: `Score this resume for: ${jobTitle} at ${company}
+              content: `Analyze this resume against the job posting.
 
-RESUME: ${resume.content.substring(0, 2500)}
+JOB TITLE: ${jobTitle}
+COMPANY: ${company}
 
-JOB: ${jobDescription.substring(0, 1500)}
+RESUME:
+${resume.content}
 
-Return ONLY JSON (no markdown):
-{"score": 65}`
+JOB DESCRIPTION:
+${jobDescription}
+
+Provide assessment in JSON format:
+{
+  "score": <0-100 match percentage>,
+  "recommendation": "<brief explanation of why this resume fits or doesn't fit>"
+}`
             }],
           })
 
           const content = (completion.choices[0]?.message?.content || "{}").replace(/```[\s\S]*?```/g, "").trim()
-          let data = { score: 60 }
-          
+          let data = { score: 60, recommendation: "" }
+
           try {
             data = JSON.parse(content)
           } catch (e) {
-            console.error("Parse error")
+            console.error("Parse error for resume:", resume.name)
           }
 
           const score = Math.min(100, Math.max(0, parseInt(String(data.score)) || 60))
           const tailorWorth = Math.max(0, 100 - score)
 
-          return { 
-            id: resume.id, 
-            name: resume.name, 
+          return {
+            id: resume.id,
+            name: resume.name,
             score,
             tailorWorth,
-            reason: `${score}% fit`
+            recommendation: data.recommendation || `${score}% fit for ${jobTitle}`
           }
         } catch (err) {
           return { 
@@ -71,14 +79,8 @@ Return ONLY JSON (no markdown):
       })
     )
 
-    // SIMPLE: Sort by score DESCENDING - highest first
+    // Sort by score DESCENDING - highest first
     const sorted = [...suggestions].sort((a, b) => b.score - a.score)
-
-    // Add recommendation
-    if (sorted.length > 0) {
-      const topResume = sorted[0]
-      topResume.recommendation = `"${topResume.name}" is the best match at ${topResume.score}% fit.`
-    }
 
     return NextResponse.json({ suggestions: sorted })
   } catch (error) {

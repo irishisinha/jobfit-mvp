@@ -141,7 +141,14 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateTailoredResume = async () => {
-    if (!selectedResume || !assessment) return
+    if (!selectedResume || !assessment) {
+      console.error("[Tailored Resume] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+      return
+    }
+    if (!selectedResume.content) {
+      console.error("[Tailored Resume] Resume has no content")
+      return
+    }
     setGenerating(true)
     try {
       const res = await fetch("/api/tailored-resume", {
@@ -166,26 +173,43 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   }
 
   const handleGenerateCoverLetter = async () => {
-    if (!selectedResume || !assessment) return
+    if (!selectedResume || !assessment) {
+      console.error("[Cover Letter] Missing data:", { hasResume: !!selectedResume, hasAssessment: !!assessment })
+      return
+    }
+    if (!selectedResume.content) {
+      console.error("[Cover Letter] Resume has no content")
+      return
+    }
     setGenerating(true)
     try {
+      const payload = {
+        resumeContent: selectedResume.content,
+        jobDescription: assessment.jobDescription,
+        jobTitle: assessment.jobTitle,
+        company: assessment.company,
+        tone: coverLetterTone
+      }
+      console.log("[Cover Letter] Sending request with payload:", { ...payload, resumeContent: payload.resumeContent.substring(0, 100) + "..." })
+
       const res = await fetch("/api/cover-letters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resumeContent: selectedResume.content,
-          jobDescription: assessment.jobDescription,
-          jobTitle: assessment.jobTitle,
-          company: assessment.company,
-          tone: coverLetterTone
-        })
+        body: JSON.stringify(payload)
       })
-      if (res.ok) {
-        const data = await res.json()
+
+      console.log("[Cover Letter] Response status:", res.status)
+      const data = await res.json()
+      console.log("[Cover Letter] Response data keys:", Object.keys(data))
+
+      if (res.ok && data.coverLetter) {
         setCoverLetter(data.coverLetter)
+        console.log("[Cover Letter] Successfully set cover letter")
+      } else {
+        console.error("[Cover Letter] Response not OK or missing coverLetter:", data)
       }
     } catch (err) {
-      console.error("Error generating cover letter:", err)
+      console.error("[Cover Letter] Error:", err)
     } finally {
       setGenerating(false)
     }
@@ -306,6 +330,33 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Overview Tab */}
             {activeTab === "overview" && (
               <div className="space-y-6">
+                {/* Debug Info */}
+                <div className="bg-gray-100 p-3 rounded text-xs text-gray-700">
+                  <div>📊 Resumes loaded: {resumes.length} | Selected: {selectedResume?.name || "None"} | Has content: {!!selectedResume?.content}</div>
+                  <div>🎯 Recommendation: {recommendedResume ? `${recommendedResume.name} (${recommendedResume.matchScore}%)` : "Loading or not found"}</div>
+                </div>
+
+                {recommendedResume && (
+                  <div className="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-600">
+                    <p className="text-sm font-bold text-blue-900 mb-2">✅ Recommended Resume for This Role</p>
+                    <p className="text-2xl font-bold text-blue-600 mb-3">{recommendedResume.name}</p>
+                    <div className="flex flex-wrap gap-3 mb-3">
+                      <span className="inline-block bg-blue-200 text-blue-900 px-4 py-2 rounded font-bold">Match Score: {recommendedResume.matchScore}%</span>
+                      <span className="inline-block bg-orange-200 text-orange-900 px-4 py-2 rounded font-bold">Tailor Worth: {recommendedResume.tailorWorth}%</span>
+                    </div>
+                    {recommendedResume.recommendation && (
+                      <p className="text-sm text-blue-700">{recommendedResume.recommendation}</p>
+                    )}
+                  </div>
+                )}
+
+                {!recommendedResume && resumes.length === 0 && (
+                  <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-600">
+                    <p className="text-sm font-bold text-yellow-900">⚠️ No resumes found</p>
+                    <p className="text-sm text-yellow-700 mt-1">Upload or create resumes first to get recommendations</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-xs text-gray-600 uppercase">Fit Score</p>
