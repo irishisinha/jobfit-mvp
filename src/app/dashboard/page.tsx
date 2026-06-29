@@ -18,6 +18,9 @@ interface Assessment {
   createdAt: string
   strengths: string[]
   gaps: string[]
+  missingKeywords: string[]
+  jobDescription: string
+  status: string
 }
 
 export default function DashboardPage() {
@@ -28,6 +31,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterVerdict, setFilterVerdict] = useState("all")
   const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/")
@@ -48,6 +52,27 @@ export default function DashboardPage() {
       console.error("Error loading:", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!selectedAssessment) return
+    setUpdatingStatus(true)
+    try {
+      const res = await fetch(`/api/assessments/${selectedAssessment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setSelectedAssessment(updated)
+        await loadAssessments()
+      }
+    } catch (err) {
+      console.error("Error updating status:", err)
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
@@ -169,6 +194,110 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {selectedAssessment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">{selectedAssessment.jobTitle}</h2>
+                <p className="text-gray-600">{selectedAssessment.company}</p>
+              </div>
+              <button onClick={() => setSelectedAssessment(null)} className="text-2xl text-gray-400 hover:text-gray-600">
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 uppercase font-bold">Fit Score</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedAssessment.fitScore}%</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 uppercase font-bold">ATS Match</p>
+                  <p className="text-2xl font-bold text-purple-600">{selectedAssessment.atsMatch}%</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 uppercase font-bold">Success</p>
+                  <p className="text-2xl font-bold text-green-600">{selectedAssessment.successProbability}%</p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 uppercase font-bold">Tailor</p>
+                  <p className="text-2xl font-bold text-orange-600">{selectedAssessment.tailorWorth}%</p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-xs text-gray-600 uppercase font-bold mb-2">Verdict</p>
+                <p className={`text-lg font-bold ${selectedAssessment.verdict === "Strong Fit" ? "text-green-600" : selectedAssessment.verdict === "Moderate Fit" ? "text-yellow-600" : "text-red-600"}`}>
+                  {selectedAssessment.verdict}
+                </p>
+              </div>
+
+              {selectedAssessment.strengths && selectedAssessment.strengths.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-green-700 mb-2">✓ Strengths</h3>
+                  <ul className="space-y-1">
+                    {selectedAssessment.strengths.map((s: string, i: number) => (
+                      <li key={i} className="text-sm text-gray-700">• {s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {selectedAssessment.gaps && selectedAssessment.gaps.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-red-700 mb-2">⚠ Gaps</h3>
+                  <ul className="space-y-1">
+                    {selectedAssessment.gaps.map((g: string, i: number) => (
+                      <li key={i} className="text-sm text-gray-700">• {g}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {selectedAssessment.missingKeywords && selectedAssessment.missingKeywords.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-yellow-700 mb-2">Missing Keywords</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAssessment.missingKeywords.map((k: string, i: number) => (
+                      <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
+                        {k}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t pt-4">
+                <h3 className="font-bold mb-3">Application Status</h3>
+                <div className="flex gap-2 flex-wrap">
+                  {["Saved", "Applied", "In Progress", "Interviewed", "Rejected", "Offered", "Accepted"].map(status => (
+                    <button
+                      key={status}
+                      onClick={() => handleStatusUpdate(status)}
+                      disabled={updatingStatus}
+                      className={`px-4 py-2 rounded-lg font-semibold transition ${
+                        selectedAssessment.status === status
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                      } ${updatingStatus ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-xs text-gray-600 uppercase font-bold mb-2">Assessment Date</p>
+                <p className="text-sm text-gray-700">{new Date(selectedAssessment.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

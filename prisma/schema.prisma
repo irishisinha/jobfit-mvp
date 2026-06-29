@@ -42,24 +42,26 @@ model Assessment {
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   resumeId              String?
   resume                Resume?  @relation(fields: [resumeId], references: [id], onDelete: SetNull)
-  
+
   jobDescription        String   @db.Text
   jobTitle              String
   company               String?
-  
+
   verdict               String
   fitScore              Int
   atsMatch              Int
   successProbability    Int
   tailorWorth           Int
-  
+
   strengths             String   @default("[]")
   gaps                  String   @default("[]")
   missingKeywords       String   @default("[]")
-  
+
+  status                String   @default("Saved")
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  
+
   @@index([userId])
   @@index([resumeId])
 }
