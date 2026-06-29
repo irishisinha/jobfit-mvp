@@ -66,13 +66,24 @@ export default function Assessment() {
   }, [status, router])
 
   useEffect(() => {
+    if (status === "authenticated") {
+      loadResumesFromDatabase()
+    }
+  }, [status])
+
+  const loadResumesFromDatabase = async () => {
     try {
-      const stored = localStorage.getItem("jobfit_resumes")
-      if (stored) setSavedResumes(JSON.parse(stored))
+      const res = await fetch("/api/resumes")
+      if (res.ok) {
+        const data = await res.json()
+        setSavedResumes(data || [])
+      } else {
+        console.error("Failed to load resumes from database")
+      }
     } catch (e) {
       console.error("Error loading resumes:", e)
     }
-  }, [status])
+  }
 
 
   const handleFetchFromUrl = async () => {
@@ -116,25 +127,33 @@ export default function Assessment() {
     setStep("results")
 
     try {
+      console.log("Starting analysis with", savedResumes.length, "resumes")
+
       const extractRes = await fetch("/api/extract-job-info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobDescription }),
       })
+      if (!extractRes.ok) throw new Error("Failed to extract job info")
+
       const extractData = await extractRes.json()
       const extractedTitle = extractData.jobTitle || "Job Position"
       const extractedCompany = extractData.company || "Company"
       setExtractedJobTitle(extractedTitle)
       setExtractedCompany(extractedCompany)
+      console.log("Extracted:", extractedTitle, extractedCompany)
 
-      const res = await fetch("/api/suggest-resume", {
+      const suggestRes = await fetch("/api/suggest-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobDescription, jobTitle: extractedTitle, company: extractedCompany, resumes: savedResumes }),
       })
+      if (!suggestRes.ok) throw new Error("Failed to suggest resume")
 
-      const data = await res.json()
-      const suggestions = data.suggestions || []
+      const suggestData = await suggestRes.json()
+      const suggestions = suggestData.suggestions || []
+      console.log("Got suggestions for", suggestions.length, "resumes")
+
       const scored = savedResumes.map(resume => {
         const match = suggestions.find((s: any) => s.id === resume.id)
         return { ...resume, matchScore: match?.score || 50, tailorWorth: match?.tailorWorth, recommendation: match?.recommendation }
@@ -145,6 +164,7 @@ export default function Assessment() {
 
       const topResume = sorted[0]
       setSelectedResume(topResume)
+      console.log("Selected top resume:", topResume.name, "with score:", topResume.matchScore)
 
       const assessRes = await fetch("/api/assess", {
         method: "POST",
@@ -152,11 +172,16 @@ export default function Assessment() {
         body: JSON.stringify({ resume: topResume.content, jobDescription, jobTitle: extractedTitle, company: extractedCompany, tone: coverLetterTone }),
       })
 
-      if (!assessRes.ok) throw new Error("Assessment failed")
+      if (!assessRes.ok) {
+        const errText = await assessRes.text()
+        throw new Error(`Assessment failed: ${errText}`)
+      }
+
       const assessData = await assessRes.json()
       setResult(assessData)
-      
-       try {
+      console.log("Assessment complete:", assessData.fitScore)
+
+      try {
         const saveRes = await fetch("/api/assessments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -185,10 +210,12 @@ export default function Assessment() {
       } catch (err) {
         console.error("Assessment save failed:", err)
       }
+
       saveToLocalStorage({ id: Date.now().toString(), jobTitle: extractedTitle, company: extractedCompany, jobDescription, verdict: assessData.verdict, fitScore: assessData.fitScore, atsMatch: assessData.atsMatch, successProbability: assessData.successProbability, tailorWorth: assessData.tailorWorth, strengths: assessData.strengths, gaps: assessData.gaps, missingKeywords: assessData.missingKeywords, resumeId: topResume.id,
             selectedResume: topResume.name, status: "not-applied", createdAt: new Date().toISOString() })
-    } catch (err) {
-      setError("Failed to analyze job and resumes")
+    } catch (err: any) {
+      console.error("Analysis error:", err)
+      setError(err.message || "Failed to analyze job and resumes")
       setStep("input")
     } finally {
       setLoading(false)
