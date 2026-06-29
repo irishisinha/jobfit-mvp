@@ -76,6 +76,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No readable content found" }, { status: 400 })
     }
 
+    // Check if content is likely just page skeleton (LinkedIn, etc. load content via JavaScript)
+    // If content is very small or mostly navigation text, it means JavaScript content wasn't loaded
+    const hasJobContent = text.toLowerCase().match(
+      /(?:qualifications|requirements|responsibilities|skills|experience|education|about|job description|what we|why you|apply now|salary|location)/
+    )
+
+    if (!hasJobContent && text.length < 500) {
+      const sourceHost = new URL(url).hostname
+      return NextResponse.json({
+        error: `${sourceHost} uses JavaScript to load job descriptions. Please copy and paste the job description directly instead of using the URL.`,
+        suggestion: "Use 'Paste JD' tab instead"
+      }, { status: 400 })
+    }
+
     // Increase limit to 50000 characters to capture complete JDs
     // Most job postings are under this limit, even with detailed requirements
     const MAX_CHARS = 50000
