@@ -73,15 +73,22 @@ export default function Assessment() {
 
   const loadResumesFromDatabase = async () => {
     try {
+      // Clear stale localStorage data on fresh login
+      localStorage.removeItem("jobfit_resumes")
+      localStorage.removeItem("jobfit_assessments")
+
       const res = await fetch("/api/resumes")
       if (res.ok) {
         const data = await res.json()
         setSavedResumes(data || [])
+        console.log("Loaded", data?.length || 0, "resumes for user:", session?.user?.email)
       } else {
         console.error("Failed to load resumes from database")
+        setSavedResumes([])
       }
     } catch (e) {
       console.error("Error loading resumes:", e)
+      setSavedResumes([])
     }
   }
 

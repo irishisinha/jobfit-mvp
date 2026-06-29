@@ -40,11 +40,15 @@ export default function ResumesPage() {
   const loadResumes = async () => {
     try {
       setDebugMsg("Loading resumes...")
+      // Clear stale cache to ensure fresh data
+      localStorage.removeItem("jobfit_resumes")
+
       const res = await fetch("/api/resumes")
       if (res.ok) {
         const data = await res.json()
         setResumes(data || [])
         setDebugMsg(`Loaded ${data?.length || 0} resumes`)
+        console.log("Loaded resumes for authenticated user:", data?.length || 0)
       } else {
         throw new Error("Failed to load")
       }
