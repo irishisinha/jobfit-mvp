@@ -1,27 +1,61 @@
 import { NextRequest, NextResponse } from "next/server"
 import puppeteer from "puppeteer"
+import StealthPlugin from "puppeteer-extra-plugin-stealth"
 
 export const maxDuration = 60
+
+// Apply stealth plugin to avoid bot detection
+puppeteer.use(StealthPlugin())
 
 async function fetchWithBrowser(url: string): Promise<string> {
   let browser
   try {
     browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: "new",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check"
+      ],
     })
 
     const page = await browser.newPage()
-    page.setDefaultTimeout(15000)
 
-    await page.goto(url, { waitUntil: "networkidle2" })
+    // Set realistic user agent
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
 
-    // Wait for common job description containers
-    await page.evaluate(() => {
-      return new Promise((resolve) => {
-        setTimeout(resolve, 2000) // Wait for JS rendering
-      })
+    page.setDefaultTimeout(20000)
+    page.setDefaultNavigationTimeout(20000)
+
+    // Navigate with aggressive waiting
+    await page.goto(url, {
+      waitUntil: ["networkidle0", "networkidle2"],
+      timeout: 20000
     })
+
+    // Wait for dynamic content to load - LinkedIn specific
+    await page.waitForTimeout(3000)
+
+    // Scroll to trigger lazy loading
+    await page.evaluate(() => {
+      window.scrollBy(0, window.innerHeight)
+    })
+    await page.waitForTimeout(2000)
+
+    // Try to find and wait for job description container
+    try {
+      await page.waitForSelector(
+        '[data-test-id="job-details-jobs-unified-top-card__job-description"], .description, [class*="description"]',
+        { timeout: 5000 }
+      )
+    } catch (e) {
+      // Continue anyway if selector not found
+    }
 
     const html = await page.content()
     await browser.close()
