@@ -46,7 +46,15 @@ export default function DashboardPage() {
       const res = await fetch("/api/assessments")
       if (res.ok) {
         const data = await res.json()
-        setAssessments(data || [])
+        // Ensure all assessments have a status field (for backward compatibility)
+        const enrichedData = (data || []).map((a: any) => ({
+          ...a,
+          status: a.status || "Saved"
+        }))
+        setAssessments(enrichedData)
+        console.log("Loaded assessments:", enrichedData.length)
+      } else {
+        console.error("Failed to load assessments, status:", res.status)
       }
     } catch (err) {
       console.error("Error loading:", err)
