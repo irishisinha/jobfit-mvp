@@ -25,15 +25,30 @@ export default function ConsistencyCheckerPage() {
   }, [status, router])
 
   useEffect(() => {
+    if (status === "authenticated") {
+      loadResumesFromDatabase()
+    }
+  }, [status])
+
+  const loadResumesFromDatabase = async () => {
     try {
-      const stored = localStorage.getItem("jobfit_resumes")
-      if (stored) {
-        setResumes(JSON.parse(stored))
+      // Clear stale cache to ensure fresh data
+      localStorage.removeItem("jobfit_resumes")
+
+      const res = await fetch("/api/resumes")
+      if (res.ok) {
+        const data = await res.json()
+        setResumes(data || [])
+        console.log("Loaded", data?.length || 0, "resumes for consistency check")
+      } else {
+        console.error("Failed to load resumes from database")
+        setResumes([])
       }
     } catch (e) {
-      console.error(e)
+      console.error("Error loading resumes:", e)
+      setResumes([])
     }
-  }, [])
+  }
 
   const handleCheck = async () => {
     if (resumes.length < 2) {
