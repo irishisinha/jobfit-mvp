@@ -40,15 +40,10 @@ export async function POST(req: NextRequest) {
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
       .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
       .replace(/<!--[\s\S]*?-->/g, " ")
-
-    // Try to extract job description from common containers
-    let contentMatch = html.match(
-      /<(?:article|main|section|div[^>]*(?:class|id)="[^"]*(?:description|content|job-details|job-description|description-section)[^"]*"[^>]*)(?:[^>])*>[\s\S]*?<\/(?:article|main|section|div)>/i
-    )
-
-    if (contentMatch) {
-      html = contentMatch[0]
-    }
+      // Remove navigation/header sections (less aggressive - only obvious nav)
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, " ")
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, " ")
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, " ")
 
     // Extract text from HTML, preserving structure
     let text = html
