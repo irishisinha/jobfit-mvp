@@ -143,46 +143,30 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
   const handleGenerateTailoredResume = async () => {
     if (!recommendedResume || !assessment) {
       console.error("[Tailored Resume] Missing data:", { hasResume: !!recommendedResume, hasAssessment: !!assessment })
-      alert("Resume and assessment data required")
       return
     }
     if (!recommendedResume.content) {
       console.error("[Tailored Resume] Resume has no content")
-      alert("Resume has no content")
       return
     }
     setGenerating(true)
     try {
-      console.log("[Tailored Resume] Starting generation for:", recommendedResume.name)
-      const payload = {
-        resumeContent: recommendedResume.content,
-        jobDescription: assessment.jobDescription,
-        jobTitle: assessment.jobTitle,
-        company: assessment.company
-      }
-      console.log("[Tailored Resume] Payload prepared, content length:", payload.resumeContent.length)
-
       const res = await fetch("/api/tailored-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          resumeContent: recommendedResume.content,
+          jobDescription: assessment.jobDescription,
+          jobTitle: assessment.jobTitle,
+          company: assessment.company
+        })
       })
-
-      console.log("[Tailored Resume] Response status:", res.status)
-      const data = await res.json()
-      console.log("[Tailored Resume] Response data keys:", Object.keys(data))
-      console.log("[Tailored Resume] Tailored resume length:", data.tailoredResume?.length || 0)
-
-      if (res.ok && data.tailoredResume) {
+      if (res.ok) {
+        const data = await res.json()
         setTailoredResume(data.tailoredResume)
-        console.log("[Tailored Resume] Successfully set tailored resume")
-      } else {
-        console.error("[Tailored Resume] Response error:", data)
-        alert("Failed to generate tailored resume: " + (data.error || "Unknown error"))
       }
     } catch (err) {
-      console.error("[Tailored Resume] Catch error:", err)
-      alert("Error: " + (err instanceof Error ? err.message : String(err)))
+      console.error("Error generating tailored resume:", err)
     } finally {
       setGenerating(false)
     }
@@ -533,7 +517,6 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                     ))}
                   </div>
                 </div>
-
                 <button
                   onClick={handleGenerateCoverLetter}
                   disabled={generating || !recommendedResume}
@@ -571,13 +554,11 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                     placeholder="Enter a question..."
                     id="app-question-input"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
-                    disabled={generating}
                   />
                   <button
                     onClick={() => {
                       const input = document.getElementById("app-question-input") as HTMLInputElement
                       if (input.value.trim()) {
-                        console.log("[UI] Adding question:", input.value)
                         handleGenerateAppQuestion(input.value)
                         input.value = ""
                       }
@@ -585,32 +566,19 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                     disabled={generating || !recommendedResume}
                     className="btn-primary disabled:opacity-50"
                   >
-                    {generating ? "Generating..." : "Add Question"}
+                    {generating ? "..." : "Add"}
                   </button>
                 </div>
 
-                {generating && (
-                  <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-600">
-                    <p className="text-sm text-yellow-700">⏳ Generating answer...</p>
-                  </div>
-                )}
-
-                {appQuestions.length === 0 && !generating && (
-                  <div className="bg-gray-50 p-4 rounded-lg text-center">
-                    <p className="text-sm text-gray-600">No questions added yet. Add a question to get AI-powered answers.</p>
-                  </div>
-                )}
-
-                {appQuestions.map((q, idx) => (
-                  <div key={q.id || idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-bold mb-3 text-lg">❓ {q.question}</h4>
+                {appQuestions.map(q => (
+                  <div key={q.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-bold mb-2">{q.question}</h4>
                     <div className="mb-3 p-3 bg-white rounded border-l-4 border-blue-600">
-                      <p className="text-sm mb-2"><strong>✨ Suggested Answer:</strong></p>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{q.suggestedAnswer}</p>
+                      <p className="text-sm mb-2"><strong>Suggested Answer:</strong></p>
+                      <p className="text-sm text-gray-700">{q.suggestedAnswer}</p>
                     </div>
                     <div className="flex gap-4 text-xs">
                       <span className="text-blue-600"><strong>Trust Score:</strong> {q.trustScore}%</span>
-                      <span className="text-gray-600"><strong>Consistency:</strong> {q.consistencyIssues || "Verified"}</span>
                       {q.userAnswer && <span className="text-green-600"><strong>Your Answer:</strong> Saved</span>}
                     </div>
                   </div>
