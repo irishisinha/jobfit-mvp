@@ -1,70 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import puppeteer from "puppeteer"
-import StealthPlugin from "puppeteer-extra-plugin-stealth"
-
-export const maxDuration = 60
-
-// Apply stealth plugin to avoid bot detection
-puppeteer.use(StealthPlugin())
-
-async function fetchWithBrowser(url: string): Promise<string> {
-  let browser
-  try {
-    browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-default-browser-check"
-      ],
-    })
-
-    const page = await browser.newPage()
-
-    // Set realistic user agent
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
-
-    page.setDefaultTimeout(20000)
-    page.setDefaultNavigationTimeout(20000)
-
-    // Navigate with aggressive waiting
-    await page.goto(url, {
-      waitUntil: ["networkidle0", "networkidle2"],
-      timeout: 20000
-    })
-
-    // Wait for dynamic content to load - LinkedIn specific
-    await page.waitForTimeout(3000)
-
-    // Scroll to trigger lazy loading
-    await page.evaluate(() => {
-      window.scrollBy(0, window.innerHeight)
-    })
-    await page.waitForTimeout(2000)
-
-    // Try to find and wait for job description container
-    try {
-      await page.waitForSelector(
-        '[data-test-id="job-details-jobs-unified-top-card__job-description"], .description, [class*="description"]',
-        { timeout: 5000 }
-      )
-    } catch (e) {
-      // Continue anyway if selector not found
-    }
-
-    const html = await page.content()
-    await browser.close()
-    return html
-  } catch (error) {
-    if (browser) await browser.close()
-    throw error
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -92,31 +26,23 @@ export async function POST(req: NextRequest) {
 
     let html: string
 
-    try {
-      // Try browser rendering first (for JavaScript-heavy sites like LinkedIn)
-      console.log("Fetching with browser:", url)
-      html = await fetchWithBrowser(url)
-    } catch (browserError) {
-      // Fallback to simple fetch if browser fails
-      console.log("Browser fetch failed, trying simple fetch:", browserError)
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        },
-        signal: controller.signal
-      })
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      },
+      signal: controller.signal
+    })
 
-      clearTimeout(timeoutId)
+    clearTimeout(timeoutId)
 
-      if (!response.ok) {
-        return NextResponse.json({ error: `Failed to fetch URL (${response.status})` }, { status: 400 })
-      }
-
-      html = await response.text()
+    if (!response.ok) {
+      return NextResponse.json({ error: `Failed to fetch URL (${response.status})` }, { status: 400 })
     }
+
+    html = await response.text()
 
     if (!html || html.length < 100) {
       return NextResponse.json({ error: "Page content too short or empty" }, { status: 400 })
@@ -161,6 +87,20 @@ export async function POST(req: NextRequest) {
 
     if (!text) {
       return NextResponse.json({ error: "No readable content found" }, { status: 400 })
+    }
+
+    // Check if content is likely just page skeleton (LinkedIn, etc. load content via JavaScript)
+    // If content is very small or mostly navigation text, it means JavaScript content wasn't loaded
+    const hasJobContent = text.toLowerCase().match(
+      /(?:qualifications|requirements|responsibilities|skills|experience|education|about|job description|what we|why you|apply now|salary|location)/
+    )
+
+    if (!hasJobContent && text.length < 500) {
+      const sourceHost = new URL(url).hostname
+      return NextResponse.json({
+        error: `${sourceHost} uses JavaScript to load job descriptions. Please copy and paste the job description directly instead of using the URL.`,
+        suggestion: "Use 'Paste JD' tab instead"
+      }, { status: 400 })
     }
 
     // Increase limit to 50000 characters to capture complete JDs

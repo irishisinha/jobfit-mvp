@@ -99,11 +99,10 @@ export default function Assessment() {
       return
     }
 
-    // Check if URL is LinkedIn
     const isLinkedIn = jobUrl.includes("linkedin.com")
     if (isLinkedIn) {
       setError(
-        "LinkedIn requires manual copy-paste due to their Terms of Service. Please: 1) Open the LinkedIn job link, 2) Select and copy the job description text, 3) Paste it in the 'Paste JD' tab. This protects both you and our service from violations."
+        "LinkedIn requires manual copy-paste due to their Terms of Service. Please: 1) Open the LinkedIn job link, 2) Select and copy the job description text, 3) Paste it in the text box above. This protects both you and our service from violations."
       )
       setInputMode("paste")
       return
