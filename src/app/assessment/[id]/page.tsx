@@ -322,9 +322,15 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Overview Tab */}
             {activeTab === "overview" && (
               <div className="space-y-6">
+                {/* Debug Info */}
+                <div className="bg-gray-100 p-3 rounded text-xs text-gray-700">
+                  <div>📊 Resumes loaded: {resumes.length} | Selected: {selectedResume?.name || "None"} | Has content: {!!selectedResume?.content}</div>
+                  <div>🎯 Recommendation: {recommendedResume ? `${recommendedResume.name} (${recommendedResume.matchScore}%)` : "Loading or not found"}</div>
+                </div>
+
                 {recommendedResume && (
                   <div className="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-600">
-                    <p className="text-sm font-bold text-blue-900 mb-2">Recommended Resume for This Role</p>
+                    <p className="text-sm font-bold text-blue-900 mb-2">✅ Recommended Resume for This Role</p>
                     <p className="text-2xl font-bold text-blue-600 mb-3">{recommendedResume.name}</p>
                     <div className="flex flex-wrap gap-3 mb-3">
                       <span className="inline-block bg-blue-200 text-blue-900 px-4 py-2 rounded font-bold">Match Score: {recommendedResume.matchScore}%</span>
@@ -333,6 +339,13 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                     {recommendedResume.recommendation && (
                       <p className="text-sm text-blue-700">{recommendedResume.recommendation}</p>
                     )}
+                  </div>
+                )}
+
+                {!recommendedResume && resumes.length === 0 && (
+                  <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-600">
+                    <p className="text-sm font-bold text-yellow-900">⚠️ No resumes found</p>
+                    <p className="text-sm text-yellow-700 mt-1">Upload or create resumes first to get recommendations</p>
                   </div>
                 )}
 
