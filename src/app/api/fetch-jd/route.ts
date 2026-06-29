@@ -1,4 +1,36 @@
 import { NextRequest, NextResponse } from "next/server"
+import puppeteer from "puppeteer"
+
+export const maxDuration = 60
+
+async function fetchWithBrowser(url: string): Promise<string> {
+  let browser
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    })
+
+    const page = await browser.newPage()
+    page.setDefaultTimeout(15000)
+
+    await page.goto(url, { waitUntil: "networkidle2" })
+
+    // Wait for common job description containers
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        setTimeout(resolve, 2000) // Wait for JS rendering
+      })
+    })
+
+    const html = await page.content()
+    await browser.close()
+    return html
+  } catch (error) {
+    if (browser) await browser.close()
+    throw error
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,23 +45,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
     }
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    let html: string
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      },
-      signal: controller.signal
-    })
+    try {
+      // Try browser rendering first (for JavaScript-heavy sites like LinkedIn)
+      console.log("Fetching with browser:", url)
+      html = await fetchWithBrowser(url)
+    } catch (browserError) {
+      // Fallback to simple fetch if browser fails
+      console.log("Browser fetch failed, trying simple fetch:", browserError)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-    clearTimeout(timeoutId)
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        },
+        signal: controller.signal
+      })
 
-    if (!response.ok) {
-      return NextResponse.json({ error: `Failed to fetch URL (${response.status})` }, { status: 400 })
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        return NextResponse.json({ error: `Failed to fetch URL (${response.status})` }, { status: 400 })
+      }
+
+      html = await response.text()
     }
-
-    let html = await response.text()
 
     if (!html || html.length < 100) {
       return NextResponse.json({ error: "Page content too short or empty" }, { status: 400 })
