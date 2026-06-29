@@ -29,17 +29,31 @@ export default function LinkedInOptimizerPage() {
   }, [status, router])
 
   useEffect(() => {
+    if (status === "authenticated") {
+      loadResumesFromDatabase()
+    }
+  }, [status])
+
+  const loadResumesFromDatabase = async () => {
     try {
-      const stored = localStorage.getItem("jobfit_resumes")
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        setSavedResumes(parsed)
-        setSelectedIds(parsed.map((r: SavedResume) => r.id))
+      // Clear stale cache to ensure fresh data
+      localStorage.removeItem("jobfit_resumes")
+
+      const res = await fetch("/api/resumes")
+      if (res.ok) {
+        const data = await res.json()
+        setSavedResumes(data || [])
+        setSelectedIds((data || []).map((r: SavedResume) => r.id))
+        console.log("Loaded", data?.length || 0, "resumes for LinkedIn optimizer")
+      } else {
+        console.error("Failed to load resumes from database")
+        setSavedResumes([])
       }
     } catch (e) {
-      console.error(e)
+      console.error("Error loading resumes:", e)
+      setSavedResumes([])
     }
-  }, [])
+  }
 
   const toggleResume = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
