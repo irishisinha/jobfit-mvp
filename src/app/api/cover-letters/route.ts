@@ -10,23 +10,33 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
       console.log("[Cover Letter API] Not authenticated")
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+      return NextResponse.json({ coverLetter: "Authentication required" }, { status: 401 })
     }
 
     console.log("[Cover Letter API] Starting cover letter generation")
-    const { resumeContent, jobDescription, tone = "professional", jobTitle, company, strengths = [], gaps = [], missingKeywords = [] } = await req.json()
+    let body
+    try {
+      body = await req.json()
+    } catch (parseErr) {
+      console.log("[Cover Letter API] JSON parse error:", parseErr)
+      return NextResponse.json({ coverLetter: "Invalid request format" }, { status: 400 })
+    }
+
+    const { resumeContent, jobDescription, tone = "professional", jobTitle, company, strengths = [], gaps = [], missingKeywords = [] } = body
 
     console.log("[Cover Letter API] Received request with:", {
       resumeLength: resumeContent?.length || 0,
       jobDescriptionLength: jobDescription?.length || 0,
       jobTitle,
       company,
-      tone
+      tone,
+      hasResumeContent: !!resumeContent,
+      hasJobDescription: !!jobDescription
     })
 
-    if (!resumeContent?.trim() || !jobDescription?.trim()) {
-      console.log("[Cover Letter API] Missing fields")
-      return NextResponse.json({ error: "Resume and job description required" }, { status: 400 })
+    if (!resumeContent || !jobDescription) {
+      console.log("[Cover Letter API] Missing fields - resumeContent:", !!resumeContent, "jobDescription:", !!jobDescription)
+      return NextResponse.json({ coverLetter: "Resume and job description required" }, { status: 400 })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })

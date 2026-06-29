@@ -8,12 +8,32 @@ export const maxDuration = 60
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user?.email) {
+      console.log("[Tailored Resume API] Not authenticated")
+      return NextResponse.json({ tailoredResume: "Authentication required" }, { status: 401 })
+    }
 
-    const { resumeContent, jobDescription } = await req.json()
+    console.log("[Tailored Resume API] Starting tailored resume generation")
+    let body
+    try {
+      body = await req.json()
+    } catch (parseErr) {
+      console.log("[Tailored Resume API] JSON parse error:", parseErr)
+      return NextResponse.json({ tailoredResume: "Invalid request format" }, { status: 400 })
+    }
 
-    if (!resumeContent?.trim() || !jobDescription?.trim()) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 })
+    const { resumeContent, jobDescription } = body
+
+    console.log("[Tailored Resume API] Received request with:", {
+      resumeLength: resumeContent?.length || 0,
+      jobDescriptionLength: jobDescription?.length || 0,
+      hasResumeContent: !!resumeContent,
+      hasJobDescription: !!jobDescription
+    })
+
+    if (!resumeContent || !jobDescription) {
+      console.log("[Tailored Resume API] Missing fields")
+      return NextResponse.json({ tailoredResume: "Missing fields" }, { status: 400 })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
