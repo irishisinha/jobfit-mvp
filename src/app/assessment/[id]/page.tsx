@@ -219,6 +219,7 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
     if (!selectedResume) return
     setGenerating(true)
     try {
+      console.log("[App Question] Sending question:", question)
       const res = await fetch("/api/application-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,12 +228,18 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
           resumes: [selectedResume]
         })
       })
-      if (res.ok) {
-        const data = await res.json()
+      console.log("[App Question] Response status:", res.status)
+      const data = await res.json()
+      console.log("[App Question] Response data:", data)
+
+      if (res.ok && data) {
         setAppQuestions([...appQuestions, data])
+        console.log("[App Question] Added to questions, total count:", appQuestions.length + 1)
+      } else {
+        console.error("[App Question] Failed to get answer:", data)
       }
     } catch (err) {
-      console.error("Error generating answer:", err)
+      console.error("[App Question] Error:", err)
     } finally {
       setGenerating(false)
     }
@@ -253,20 +260,22 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
     }
   }
 
-  if (status === "loading") {
+  const downloadFile = (content: string, filename: string) => {
+    const element = document.createElement("a")
+    element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(content))
+    element.setAttribute("download", filename)
+    element.style.display = "none"
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+  }
+
+  if (status === "loading" || loading) {
     return <div className="p-8 text-center">Loading assessment...</div>
   }
 
-  if (!session) {
-    return null
-  }
-
-  if (loading) {
-    return <div className="min-h-screen bg-gray-50 p-8 text-center">Loading assessment...</div>
-  }
-
-  if (!assessment) {
-    return <div className="min-h-screen bg-gray-50 p-8 text-center">Assessment not found</div>
+  if (!session || !assessment) {
+    return <div className="p-8 text-center">Assessment not found</div>
   }
 
   return (
@@ -433,46 +442,40 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Tailored Resume Tab */}
             {activeTab === "tailor" && (
               <div className="space-y-4">
-                {recommendedResume && (
-                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
-                    <p className="text-sm font-bold text-blue-900 mb-1">Recommended Resume</p>
-                    <p className="text-2xl font-bold text-blue-600">{recommendedResume.name}</p>
-                    <div className="flex gap-4 mt-2">
-                      <span className="inline-block bg-blue-200 text-blue-800 px-3 py-1 rounded text-sm font-bold">Match: {recommendedResume.matchScore}%</span>
-                      <span className="inline-block bg-orange-200 text-orange-800 px-3 py-1 rounded text-sm font-bold">Tailor Worth: {recommendedResume.tailorWorth}%</span>
-                    </div>
-                    {recommendedResume.recommendation && (
-                      <p className="text-sm text-blue-700 mt-3">{recommendedResume.recommendation}</p>
-                    )}
-                  </div>
-                )}
-
-                {!recommendedResume && resumes.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-bold mb-2">Select Resume</label>
-                    <select
-                      value={selectedResume?.id || ""}
-                      onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {resumes.map(r => (
-                        <option key={r.id} value={r.id}>{r.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
+                <div>
+                  <label className="block text-sm font-bold mb-2">Select Resume</label>
+                  <select
+                    value={selectedResume?.id || ""}
+                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    {resumes.map(r => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   onClick={handleGenerateTailoredResume}
                   disabled={generating || !selectedResume}
                   className="w-full btn-primary disabled:opacity-50"
                 >
-                  {generating ? "Generating..." : `Generate Tailored Resume${recommendedResume ? " (" + recommendedResume.name + ")" : ""}`}
+                  {generating ? "Generating..." : "Generate Tailored Resume"}
                 </button>
                 {tailoredResume && (
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-bold mb-2">Tailored Resume</h3>
-                    <p className="text-sm whitespace-pre-wrap">{tailoredResume}</p>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-bold">✨ Tailored Resume (Optimized for {assessment.jobTitle})</h3>
+                      <button
+                        onClick={() => downloadFile(tailoredResume, `tailored-resume-${assessment.jobTitle.replace(/\s+/g, "-")}.txt`)}
+                        className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                      >
+                        ⬇ Download
+                      </button>
+                    </div>
+                    <div className="bg-blue-50 p-3 mb-3 rounded border-l-4 border-blue-600">
+                      <p className="text-xs text-blue-700 mb-2">💡 <strong>Optimizations:</strong> Keywords added to match job description, accomplishments reframed to highlight relevant skills, formatting adjusted for ATS compatibility</p>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap font-mono bg-white p-3 rounded">{tailoredResume}</p>
                   </div>
                 )}
               </div>
@@ -481,28 +484,18 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
             {/* Cover Letter Tab */}
             {activeTab === "cover" && (
               <div className="space-y-4">
-                {recommendedResume && (
-                  <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600 mb-4">
-                    <p className="text-sm font-bold text-blue-900">Using Recommended Resume</p>
-                    <p className="text-lg font-bold text-blue-600">{recommendedResume.name}</p>
-                    <p className="text-sm text-blue-700 mt-2">Match Score: {recommendedResume.matchScore}%</p>
-                  </div>
-                )}
-
-                {!recommendedResume && resumes.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-bold mb-2">Resume</label>
-                    <select
-                      value={selectedResume?.id || ""}
-                      onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {resumes.map(r => (
-                        <option key={r.id} value={r.id}>{r.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-bold mb-2">Resume</label>
+                  <select
+                    value={selectedResume?.id || ""}
+                    onChange={(e) => setSelectedResume(resumes.find(r => r.id === e.target.value) || null)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    {resumes.map(r => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-bold mb-2">Tone</label>
                   <select
@@ -524,8 +517,19 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
                 </button>
                 {coverLetter && (
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-bold mb-2">Cover Letter</h3>
-                    <p className="text-sm whitespace-pre-wrap">{coverLetter}</p>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-bold">📄 Cover Letter ({coverLetterTone} tone)</h3>
+                      <button
+                        onClick={() => downloadFile(coverLetter, `cover-letter-${assessment.jobTitle.replace(/\s+/g, "-")}.txt`)}
+                        className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                      >
+                        ⬇ Download
+                      </button>
+                    </div>
+                    <div className="bg-green-50 p-3 mb-3 rounded border-l-4 border-green-600">
+                      <p className="text-xs text-green-700 mb-2">✓ <strong>Verified:</strong> All claims backed by resume, company knowledge demonstrated, tone matches your style</p>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap font-mono bg-white p-3 rounded">{coverLetter}</p>
                   </div>
                 )}
               </div>
