@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 import Groq from "groq-sdk"
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
 export async function POST(req: NextRequest) {
   try {
     console.log("[App Question API] Received request")
 
-    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === "your-groq-api-key") {
-      console.error("[App Question API] GROQ_API_KEY is not set or is a placeholder")
+    // Check API key FIRST before creating Groq client
+    if (!process.env.GROQ_API_KEY) {
+      console.error("[App Question API] GROQ_API_KEY environment variable is not set")
       return NextResponse.json(
-        { error: "API configuration error: GROQ_API_KEY is not configured. Please set your Groq API key in environment variables." },
+        { error: "API configuration error: GROQ_API_KEY environment variable not set in Vercel" },
         { status: 500 }
       )
     }
+
+    if (process.env.GROQ_API_KEY === "your-groq-api-key") {
+      console.error("[App Question API] GROQ_API_KEY is still a placeholder")
+      return NextResponse.json(
+        { error: "API configuration error: GROQ_API_KEY is placeholder value. Set real key in Vercel environment variables." },
+        { status: 500 }
+      )
+    }
+
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
     const body = await req.json()
     const { question, resumes } = body
@@ -82,21 +91,46 @@ TRUTHFULNESS SCORE: [0-100]
 CONSISTENCY NOTES:
 [Brief note on how this draws from their resume]`
 
-    console.log("[App Question API] Calling Groq API")
-    const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      max_tokens: 1000,
-      temperature: 0.7,
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
-    })
+    console.log("[App Question API] Calling Groq API with prompt length:", prompt.length)
+
+    let response
+    try {
+      response = await groq.chat.completions.create({
+        model: "llama-3.1-8b-instant",
+        max_tokens: 1000,
+        temperature: 0.7,
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      })
+    } catch (groqErr: any) {
+      console.error("[App Question API] Groq API error:", {
+        message: groqErr.message,
+        status: groqErr.status,
+        error: groqErr.error
+      })
+      const errorMsg = groqErr.message?.includes("rate_limit")
+        ? "Rate limit exceeded. Please try again in a moment."
+        : groqErr.message || "Groq API error"
+      return NextResponse.json(
+        { error: "Groq API error: " + errorMsg },
+        { status: 500 }
+      )
+    }
 
     console.log("[App Question API] Groq response received")
     const responseText = response.choices[0]?.message?.content || ""
+
+    if (!responseText) {
+      console.error("[App Question API] Empty response from Groq")
+      return NextResponse.json(
+        { error: "Empty response from Groq API" },
+        { status: 500 }
+      )
+    }
 
     console.log("[App Question API] Response text length:", responseText.length)
 
@@ -127,9 +161,14 @@ CONSISTENCY NOTES:
       createdAt: new Date().toISOString()
     })
   } catch (error: any) {
-    console.error("Error generating suggested answer:", error)
+    console.error("[App Question API] Caught error:", {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.substring(0, 500)
+    })
+    const errorMsg = error.message || "Failed to generate answer"
     return NextResponse.json(
-      { error: error.message || "Failed to generate answer" },
+      { error: `Error: ${errorMsg}` },
       { status: 500 }
     )
   }
