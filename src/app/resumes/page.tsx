@@ -135,6 +135,16 @@ export default function ResumesPage() {
     }
   }
 
+  const handleDownload = (resume: SavedResume) => {
+    const element = document.createElement("a")
+    const file = new Blob([resume.content], { type: "text/plain" })
+    element.href = URL.createObjectURL(file)
+    element.download = `${resume.name}.txt`
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+  }
+
   return (
     <>
       <NavBar />
@@ -209,6 +219,12 @@ export default function ResumesPage() {
                     >
                       Use Resume
                     </Link>
+                    <button
+                      onClick={() => handleDownload(resume)}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      Download
+                    </button>
                     <button
                       onClick={() => handleDelete(resume.id)}
                       className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
