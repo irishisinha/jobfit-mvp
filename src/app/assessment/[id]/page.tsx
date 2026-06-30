@@ -163,12 +163,19 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
           company: assessment.company
         })
       })
-      if (res.ok) {
-        const data = await res.json()
+      const data = await res.json()
+      console.log("[Tailored Resume] Response status:", res.status, "Data:", data)
+
+      if (res.ok && data.tailoredResume) {
         setTailoredResume(data.tailoredResume)
+      } else {
+        const errorMsg = data.tailoredResume || data.error || "Failed to generate tailored resume"
+        alert("Error: " + errorMsg)
+        console.error("[Tailored Resume] Error:", errorMsg)
       }
     } catch (err) {
       console.error("Error generating tailored resume:", err)
+      alert("Error: " + (err instanceof Error ? err.message : String(err)))
     } finally {
       setGenerating(false)
     }
@@ -208,10 +215,13 @@ export default function AssessmentDetailPage({ params }: { params: { id: string 
         setCoverLetter(data.coverLetter)
         console.log("[Cover Letter] Successfully set cover letter")
       } else {
-        console.error("[Cover Letter] Response not OK or missing coverLetter:", data)
+        const errorMsg = data.error || "Failed to generate cover letter"
+        console.error("[Cover Letter] Error:", errorMsg)
+        alert("Error: " + errorMsg)
       }
     } catch (err) {
       console.error("[Cover Letter] Error:", err)
+      alert("Error: " + (err instanceof Error ? err.message : String(err)))
     } finally {
       setGenerating(false)
     }
