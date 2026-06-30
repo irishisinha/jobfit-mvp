@@ -32,8 +32,23 @@ export async function POST(req: NextRequest) {
     })
 
     if (!resumeContent || !jobDescription) {
-      console.log("[Tailored Resume API] Missing fields")
-      return NextResponse.json({ tailoredResume: "Missing fields" }, { status: 400 })
+      console.log("[Tailored Resume API] Missing fields:", {
+        hasResumeContent: !!resumeContent,
+        resumeContentLength: resumeContent?.length || 0,
+        hasJobDescription: !!jobDescription,
+        jobDescriptionLength: jobDescription?.length || 0
+      })
+      const errorMsg = !resumeContent
+        ? "Missing: resume content. Make sure recommendation is loaded and has content."
+        : "Missing: job description. Assessment data incomplete."
+      return NextResponse.json({ tailoredResume: errorMsg }, { status: 400 })
+    }
+
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === "your-groq-api-key") {
+      console.error("[Tailored Resume API] GROQ_API_KEY not configured")
+      return NextResponse.json({
+        tailoredResume: "API configuration error: GROQ_API_KEY not set. Contact administrator."
+      }, { status: 500 })
     }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
